@@ -24,7 +24,7 @@
     name_required:  { ar: 'الاسم الكامل مطلوب للبدء', he: 'שם מלא הוא שדה חובה' },
     hello_name:     { ar: 'أهلاً {n} 👋', he: 'שלום {n} 👋' },
     ready_challenge:{ ar: 'جاهز تدخل تحدي المبيعات؟', he: 'מוכן להיכנס לאתגר המכירות?' },
-    quick_note:     { ar: 'المرحلة الأولى: 13 سؤالاً · 3–5 دقائق', he: 'שלב ראשון: 13 שאלות · 3–5 דקות' },
+    quick_note:     { ar: '5 مستويات · 25 موقفاً · 6–8 دقائق · + تحدي تركيز قصير', he: '5 שלבים · 25 תרחישים · 6–8 דקות · + אתגר ריכוז קצר' },
     emp_note:       { ar: '8 مناطق · 36 موقفاً من عالم المبيعات', he: '8 אזורים · 36 תרחישי מכירה' },
     stage1_th:      { ar: 'حد المرحلة الأولى للمرشح', he: 'סף שלב 1 למועמד' },
     continue_anyway:{ ar: 'متابعة رغم ذلك', he: 'המשך בכל זאת' },
@@ -35,6 +35,39 @@
     open_stage2:    { ar: 'فتح المرحلة 2 للمرشح', he: 'פתח שלב 2 למועמד' },
     play_stage2:    { ar: 'تشغيل المرحلة 2 الآن', he: 'הפעל שלב 2 עכשיו' },
     sound:          { ar: 'الصوت', he: 'סאונד' },
+    challenge:      { ar: 'تحدٍ', he: 'אתגר' },
+    challenges:     { ar: 'تحديات', he: 'אתגרים' },
+    next_level:     { ar: 'المستوى التالي', he: 'השלב הבא' },
+    level_done:     { ar: 'اكتمل المستوى', he: 'השלב הושלם' },
+    sales_part_done:{ ar: 'اكتمل تحدي المبيعات', he: 'אתגר המכירות הושלם' },
+    one_more:       { ar: 'تحدٍ أخير', he: 'אתגר אחרון' },
+    skip:           { ar: 'تخطّي', he: 'דילוג' },
+    bravo_name:     { ar: 'أحسنت يا {n}!', he: 'כל הכבוד {n}!' },
+    cand_done_1:    { ar: 'لقد أكملت تحدي Sales DNA بنجاح.', he: 'השלמת את אתגר ה-Sales DNA בהצלחה.' },
+    cand_done_2:    { ar: 'تم إرسال نتائجك للفريق.', he: 'התוצאות נשלחו לצוות.' },
+    focus_title:    { ar: 'تحدي التركيز', he: 'אתגר הריכוז' },
+    focus_score:    { ar: 'نتيجة التركيز', he: 'ציון ריכוז' },
+    focus_note:     { ar: 'مهمة قصيرة للانتباه والمعالجة — ليست اختبار ذكاء ولا تدخل في نسبة التطابق.',
+                      he: 'משימת קשב ועיבוד קצרה — לא מבחן אינטליגנציה ואינה נכללת בציון ההתאמה.' },
+    focus_bench:    { ar: 'مقارنة بمعيار الفريق', he: 'מול הבנצ׳מרק של הצוות' },
+    focus_below:    { ar: 'أقل من معيار الفريق الحالي', he: 'מתחת לבנצ׳מרק הנוכחי' },
+    focus_at:       { ar: 'ضمن معيار الفريق', he: 'בתוך טווח הבנצ׳מרק' },
+    focus_above:    { ar: 'أعلى من معيار الفريق', he: 'מעל הבנצ׳מרק' },
+    focus_nodata:   { ar: 'لم يتم لعب تحدي التركيز', he: 'אתגר הריכוז לא בוצע' },
+    focus_corr:     { ar: 'ارتباط التركيز بالأداء', he: 'קשר בין ריכוז לביצועים' },
+    focus_corr_none:{ ar: 'لا توجد بيانات كافية لتحديد ما إذا كان التركيز مرتبطاً بالنجاح في المبيعات لديكم — لا يُستخدم في القرار.',
+                      he: 'אין מספיק נתונים כדי לקבוע אם ריכוז קשור להצלחה במכירות אצלכם — לא בשימוש בהחלטה.' },
+    play_focus:     { ar: 'تشغيل تحدي التركيز', he: 'הפעל את אתגר הריכוז' },
+    run_25:         { ar: 'نموذج 25 سؤالاً', he: 'מודל 25 שאלות' },
+    dna_dims:       { ar: 'الأبعاد الستة', he: 'ששת המדדים' },
+    consistency_idx:{ ar: 'مؤشر الاتساق', he: 'מדד עקביות' },
+    recommendation: { ar: 'توصية النظام', he: 'המלצת המערכת' },
+    rec_proceed:    { ar: 'الانتقال إلى مقابلة', he: 'מעבר לראיון' },
+    rec_review:     { ar: 'مراجعة مع تركيز على النقاط الضعيفة', he: 'בדיקה עם דגש על החולשות' },
+    rec_low:        { ar: 'تطابق منخفض — القرار للمدير', he: 'התאמה נמוכה — החלטת המנהל' },
+    calibrate:      { ar: 'معايرة الأوزان من الموظفين الأقوياء', he: 'כיול משקלים מהעובדים החזקים' },
+    weights_25:     { ar: 'أوزان نموذج المرشّح', he: 'משקלי מודל המועמד' },
+    sim_strong:     { ar: 'تشابه مع الأقوياء', he: 'דמיון לחזקים' },
     who_are_you:    { ar: 'من أنت؟', he: 'מי אתה?' },
     role_emp:       { ar: 'أنا موظف في الشركة', he: 'אני עובד בחברה' },
     role_emp_s:     { ar: 'EXISTING EMPLOYEE', he: 'EXISTING EMPLOYEE' },
@@ -94,6 +127,7 @@
     kpi_high_match: { ar: 'تطابق مرتفع', he: 'התאמה גבוהה' },
     funnel:         { ar: 'مسار المرشحين', he: 'משפך מועמדים' },
     name:           { ar: 'الاسم', he: 'שם' },
+    date:           { ar: 'التاريخ', he: 'תאריך' },
     perf:           { ar: 'الأداء', he: 'ביצועים' },
     target_pct:     { ar: '% الهدف', he: '% יעד' },
     dna_score:      { ar: 'DNA', he: 'DNA' },
@@ -215,6 +249,7 @@
   function radar(series, opts) {
     opts = opts || {};
     var keys = opts.keys || Q.traitKeys;
+    var dict = opts.dict || Q.TRAITS;
     var size = opts.size || 320, cx = size / 2, cy = size / 2, r = size / 2 - 46;
     var n = keys.length, out = [];
     function pt(i, v) {
@@ -246,7 +281,7 @@
       var lx = cx + (r + 26) * Math.cos(ang), ly = cy + (r + 26) * Math.sin(ang);
       var anchor = Math.abs(Math.cos(ang)) < 0.3 ? 'middle' : (Math.cos(ang) > 0 ? 'start' : 'end');
       out.push('<text x="' + lx + '" y="' + (ly + 4) + '" text-anchor="' + anchor + '" class="rl">' +
-        Q.TRAITS[k].icon + ' ' + esc(lang === 'he' ? Q.TRAITS[k].he : Q.TRAITS[k].ar) + '</text>');
+        dict[k].icon + ' ' + esc(lang === 'he' ? dict[k].he : dict[k].ar) + '</text>');
     });
     var legend = series.map(function (s) {
       return '<span class="lg"><i style="background:' + s.color + '"></i>' + esc(s.name) + '</span>';

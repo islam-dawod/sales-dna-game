@@ -456,6 +456,101 @@ body.mgr-mode .world{filter:blur(3px) saturate(.6);opacity:.5}
   .splash-hero{height:36vh}
 }
 
+
+/* ============================================================
+   V3 — challenge counter · 6-dimension bars · FOCUS mini-games
+   ============================================================ */
+.world{filter:hue-rotate(var(--zone-hue,0deg))}
+.chal-count{font-family:'Orbitron',sans-serif;font-size:11.5px;letter-spacing:2px;color:var(--muted);margin-bottom:2px}
+.cand-bravo{font-size:clamp(20px,5vw,30px);color:var(--cyan);margin:2px 0 6px}
+.opt.wrong{border-color:var(--red);background:linear-gradient(135deg,rgba(239,68,68,.28),rgba(127,29,29,.24));
+  box-shadow:0 0 0 2px var(--red)}
+
+/* ---------- manager: 6 dimensions with strong benchmark ---------- */
+.dim-row{display:grid;grid-template-columns:minmax(140px,1.5fr) 2.2fr 44px;gap:10px;align-items:center;
+  font-size:13px;margin-bottom:9px}
+.dim-lbl{color:#cfe0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:start}
+.dim-track{position:relative;height:12px;background:var(--panel2);border-radius:99px;overflow:visible}
+.dim-fill{height:100%;border-radius:99px;transition:width .8s cubic-bezier(.2,1,.3,1)}
+.dim-bench{position:absolute;top:-4px;width:3px;height:20px;background:#10b981;border-radius:2px;opacity:.95;
+  box-shadow:0 0 8px rgba(16,185,129,.8)}
+.dim-val{font-family:'Orbitron',sans-serif;font-size:13px;text-align:end}
+.rec-box{margin-top:8px;padding:9px 13px;border-radius:12px;font-size:13.5px;background:rgba(59,130,246,.12);
+  border:1px solid rgba(59,130,246,.4)}
+.rec-box.high{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.5)}
+.rec-box.mid{background:rgba(245,158,11,.13);border-color:rgba(245,158,11,.5)}
+.rec-box.low{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.5)}
+.flag.sev0{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.35)}
+.ok-box{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.45);color:#6ee7b7}
+
+/* ---------- manager: focus card ---------- */
+.focus-head{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.focus-subs{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;flex:1;min-width:240px}
+.fsub{background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:13px;padding:9px 12px;
+  display:flex;flex-direction:column;gap:2px}
+.fsub small{color:var(--muted);font-size:11px}
+.fsub b{font-family:'Orbitron',sans-serif;font-size:19px}
+.focus-raw{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
+.fraw{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:11px;padding:8px 11px;
+  display:flex;justify-content:space-between;align-items:center;font-size:12.5px}
+.fraw b{font-family:'Orbitron',sans-serif;font-size:14px}
+
+/* ============================================================
+   FOCUS MINI-GAMES
+   ============================================================ */
+.focus-intro,.focus-brief{justify-content:center}
+.fx-hero{width:min(40vw,150px);height:min(28vh,210px);margin-bottom:-20px;z-index:2}
+.fx-badge{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:var(--cyan);
+  border:1px solid var(--cyan);border-radius:99px;padding:4px 14px}
+.focus-game{justify-content:center;padding:56px 0 20px!important;width:100%}
+.fx-top{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;justify-content:space-between;align-items:center;
+  gap:10px;padding:10px 14px;background:linear-gradient(180deg,rgba(5,8,15,.95),rgba(5,8,15,.4))}
+.fx-title{font-family:'Orbitron',sans-serif;font-size:12.5px;letter-spacing:2px}
+.fx-stat{font-size:12.5px;color:var(--muted);font-weight:800}
+.fx-timer{font-family:'Orbitron',sans-serif;font-size:19px;color:var(--cyan);min-width:64px;text-align:end}
+.fx-timer.urgent{color:#fca5a5;animation:tick .9s ease-in-out infinite}
+@keyframes tick{50%{transform:scale(1.09)}}
+.fx-bar{position:fixed;top:44px;left:0;right:0;height:4px;background:rgba(255,255,255,.08);z-index:30}
+.fx-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--purple));transition:width .12s linear}
+.fx-hint{margin-top:10px;text-align:center}
+
+.spot-wrap{display:grid;grid-template-columns:1fr;gap:12px;width:100%;max-width:1180px;margin-top:6px}
+@media(min-width:820px){.spot-wrap{grid-template-columns:1fr 1fr}}
+.spot-pane{position:relative;border:2px solid var(--line);border-radius:18px;overflow:hidden;cursor:crosshair;
+  background:#0e1729;box-shadow:var(--shadow)}
+.spot-pane:hover{border-color:rgba(59,130,246,.5)}
+.spot-pane.shake{animation:shakeX .32s ease}
+@keyframes shakeX{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.spot-svg{width:100%;height:auto;display:block;user-select:none;pointer-events:none}
+.spot-lbl{position:absolute;top:8px;inset-inline-start:10px;font-family:'Orbitron',sans-serif;font-size:13px;
+  color:var(--cyan);background:rgba(5,8,15,.75);border-radius:8px;padding:2px 9px}
+.spot-marks{position:absolute;inset:0;pointer-events:none}
+.spot-mark{position:absolute;transform:translate(50%,-50%);border-radius:50%;box-sizing:border-box}
+.spot-mark.ok{border:3px solid #10b981;box-shadow:0 0 18px rgba(16,185,129,.85);animation:pop .4s cubic-bezier(.2,1.6,.4,1)}
+.spot-mark.miss{width:26px;height:26px;border:3px solid #ef4444;margin:-13px 0 0 -13px;transform:none;
+  animation:missFade .7s ease forwards}
+@keyframes missFade{to{opacity:0;transform:scale(1.6)}}
+
+.cust-card{width:min(94vw,420px);background:linear-gradient(165deg,rgba(20,30,50,.98),rgba(8,13,24,.98));
+  border:1px solid var(--line);border-radius:22px;padding:16px 18px;box-shadow:var(--shadow);margin-top:14px}
+.cc-head{font-family:'Orbitron',sans-serif;font-size:11.5px;letter-spacing:3px;color:var(--cyan);
+  text-align:center;margin-bottom:10px}
+.cc-row{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:14.5px}
+.cc-row:last-child{border-bottom:0}
+.cc-row span{color:var(--muted)}
+.cc-row b{font-weight:800}
+.count-big{font-family:'Orbitron',sans-serif;font-size:clamp(60px,18vw,120px);color:var(--cyan);
+  animation:pop .5s cubic-bezier(.2,1.6,.4,1);margin-top:20px}
+.scan-say{font-size:16px;color:var(--muted);margin-top:18px}
+.scan-q{font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:1px;color:var(--orange);margin:10px 0 4px}
+.focus-game .q-text{margin:6px 0 14px}
+.scan-opts{max-width:640px;margin:0 auto}
+@media(max-width:759px){
+  .spot-pane{border-radius:14px}
+  .fx-timer{font-size:17px}
+}
+
 /* ---------- print ---------- */
 @media print{
   .topbar,.mgr-nav,.foot,.btn,.bg-glow,.world,.world-veil{display:none!important}

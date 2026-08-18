@@ -136,7 +136,7 @@
       '<p class="muted">' + esc(T('quick_note')) + '</p>' +
       '<button class="btn btn-primary btn-xl pulse" id="startGame">' + esc(T('start_challenge')) + '</button></div>';
     document.getElementById('startGame').onclick = function () {
-      Game.start('c1', { type: 'candidate', id: c.id, name: c.name });
+      Game.start('candidate', { type: 'candidate', id: c.id, name: c.name });
     };
   }
 

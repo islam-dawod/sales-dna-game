@@ -360,12 +360,171 @@
       .slice(0, limit || 3);
   }
 
+  /* ============================================================
+     BRIDGE — employees (12 traits) -> candidate model (6 dims)
+     so a 25-question candidate can be compared with real staff
+     ============================================================ */
+  var NC = root.SDNA.NC;
+  function to6(traits) {
+    function avg2(a, b) {
+      var v = [traits[a], traits[b]].filter(function (x) { return x != null; });
+      return v.length ? round(v.reduce(function (s, x) { return s + x; }, 0) / v.length) : null;
+    }
+    return {
+      target:     avg2('target', 'motivation'),
+      persist:    avg2('persistence', 'resilience'),
+      discipline: traits.discipline != null ? traits.discipline : null,
+      commit:     traits.commitment != null ? traits.commitment : null,
+      learn:      avg2('learning', 'coachability'),
+      account:    traits.accountability != null ? traits.accountability : null
+    };
+  }
+  function employee6(e) { return e.assessment ? to6(dna(e.assessment.answers).traits) : null; }
+
+  function group6(employees) {
+    var res = {};
+    ['strong', 'medium', 'low'].forEach(function (g) {
+      var list = employees.filter(function (e) { return e.group === g && e.assessment; }).map(employee6);
+      var t = {};
+      NC.DIM_KEYS.forEach(function (k) {
+        var vals = list.map(function (v) { return v[k]; }).filter(function (v) { return v != null; });
+        t[k] = vals.length ? round(avg(vals)) : null;
+      });
+      res[g] = { dims: t, n: list.length };
+    });
+    return res;
+  }
+
+  function similarity6(a, b, w) {
+    var num = 0, den = 0;
+    NC.DIM_KEYS.forEach(function (k) {
+      if (a[k] == null || b[k] == null) return;
+      var wk = (w && w[k]) || 1;
+      num += wk * Math.abs(a[k] - b[k]); den += wk;
+    });
+    if (!den) return null;
+    return round(clamp(100 - (num / den) * 1.35, 0, 100));
+  }
+
+  /* candidate (25-question model) vs the three employee groups */
+  function candidateReport(c, state) {
+    if (!c.nc) return null;
+    var sc = NC.score(c.nc.answers, state);
+    var g6 = group6(state.employees);
+    var w = state.settings.ncWeights || NC.defaultWeights();
+    var sims = {
+      strong: g6.strong.n ? similarity6(sc.dims, g6.strong.dims, w) : null,
+      medium: g6.medium.n ? similarity6(sc.dims, g6.medium.dims, w) : null,
+      low:    g6.low.n ? similarity6(sc.dims, g6.low.dims, w) : null
+    };
+    var th = state.settings.thresholds;
+    var band = sc.match >= th.high ? 'high' : sc.match >= th.mid ? 'mid' : 'low';
+    return { score: sc, sims: sims, groups: g6, band: band, weights: w };
+  }
+
+  /* calibrate the 6 weights from what actually separates strong from low */
+  function calibrate6(employees) {
+    var g6 = group6(employees), seps = {}, tot = 0;
+    NC.DIM_KEYS.forEach(function (k) {
+      var s = g6.strong.dims[k], l = g6.low.dims[k];
+      var sep = (s != null && l != null) ? Math.max(0, s - l) : 0;
+      seps[k] = sep + 1.5;
+      tot += seps[k];
+    });
+    var w = {}, budget = 100 - NC.CONSISTENCY_W;
+    NC.DIM_KEYS.forEach(function (k) { w[k] = Math.round(budget * seps[k] / tot * 10) / 10; });
+    return { weights: w, separation: seps, groups: g6, enough: g6.strong.n >= 3 && g6.low.n >= 2 };
+  }
+
+  /* ---------- focus benchmarks (kept out of the match on purpose) ---------- */
+  function focusStats(employees) {
+    var res = {};
+    ['strong', 'medium', 'low'].forEach(function (g) {
+      var list = employees.filter(function (e) { return e.group === g && e.focus; });
+      res[g] = {
+        n: list.length,
+        focus: list.length ? round(avg(list.map(function (e) { return e.focus.focus; }))) : null,
+        sub: ['visual', 'speed', 'accuracy', 'recall'].reduce(function (acc, k) {
+          acc[k] = list.length ? round(avg(list.map(function (e) { return e.focus.sub[k]; }))) : null;
+          return acc;
+        }, {})
+      };
+    });
+    var all = employees.filter(function (e) { return e.focus; });
+    res.all = { n: all.length, focus: all.length ? round(avg(all.map(function (e) { return e.focus.focus; }))) : null };
+    res.gap = (res.strong.focus != null && res.low.focus != null) ? res.strong.focus - res.low.focus : null;
+    res.reliable = res.strong.n >= 5 && res.low.n >= 5 && res.gap != null && Math.abs(res.gap) >= 8;
+    return res;
+  }
+
+  /* ---------- manager summary for the 25-question model ---------- */
+  function ncSummary(rep, lang) {
+    var he = lang === 'he', sc = rep.score, D = NC.DIMS;
+    var nm = function (k) { return he ? D[k].he : D[k].ar; };
+    var sorted = NC.DIM_KEYS.filter(function (k) { return sc.dims[k] != null; })
+      .sort(function (a, b) { return sc.dims[b] - sc.dims[a]; });
+    var top = sorted.slice(0, 3), weak = sorted.slice(-2).reverse();
+    var p = [];
+    if (he) {
+      p.push('התאמה כוללת ' + sc.match + '%' + (rep.sims.strong != null ? ', דמיון לעובדים החזקים ' + rep.sims.strong + '%.' : '.'));
+      p.push('חזק במיוחד ב: ' + top.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join(', ') + '.');
+      p.push('נדרשת בדיקה ב: ' + weak.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join(', ') + '.');
+      if (sc.consistency != null) p.push('מדד עקביות: ' + sc.consistency + '%' +
+        (sc.consistency < 70 ? ' — שאלות ההצלבה בשלב 5 לא תואמות את הפרופיל שנבנה בשלבים 1–4, כדאי לברר בראיון.' : '.'));
+      if (sc.flags.length) p.push('לתשומת לב: ' + sc.flags.map(function (f) { return f.he; }).join(', ') + '.');
+    } else {
+      p.push('نسبة التطابق الكلية ' + sc.match + '%' + (rep.sims.strong != null ? '، والتشابه مع الموظفين الأقوياء ' + rep.sims.strong + '%.' : '.'));
+      p.push('الأقوى لديه: ' + top.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join('، ') + '.');
+      p.push('يحتاج تحقّقاً في: ' + weak.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join('، ') + '.');
+      if (sc.consistency != null) p.push('مؤشر الاتساق: ' + sc.consistency + '%' +
+        (sc.consistency < 70 ? ' — أسئلة التقاطع في المستوى الخامس لا تتطابق مع البروفايل الذي بُني في المستويات 1–4، يُنصح بالتوضيح في المقابلة.' : '.'));
+      if (sc.flags.length) p.push('نقاط تحتاج انتباهاً: ' + sc.flags.map(function (f) { return f.ar; }).join('، ') + '.');
+    }
+    return p;
+  }
+
+  var NC_IQ = {
+    target:     { ar: 'ما الرقم الشهري الذي تريد الوصول إليه، ولماذا هذا الرقم تحديداً؟', he: 'לאיזה מספר חודשי אתה מכוון ולמה דווקא אליו?' },
+    persist:    { ar: 'أعطني مثالاً على عميل رفضك أكثر من مرة واستمررت معه — ماذا فعلت بالضبط؟', he: 'תן דוגמה ללקוח שסירב יותר מפעם והמשכת איתו — מה עשית בדיוק?' },
+    discipline: { ar: 'صف لي يوم عملك من أوله لآخره بالأرقام: كم مكالمة، كم متابعة، ومتى؟', he: 'תאר את יום העבודה שלך במספרים: כמה שיחות, כמה מעקבים, ומתי?' },
+    commit:     { ar: 'ما هي التزاماتك الثابتة خلال الأشهر القادمة وكيف ستنظّمها مع الدوام؟', he: 'מהן ההתחייבויות הקבועות שלך בחודשים הקרובים ואיך הן משתלבות במשרה?' },
+    learn:      { ar: 'ما آخر ملاحظة تلقيتها ولم تعجبك؟ وماذا فعلت بها؟', he: 'מה ההערה האחרונה שקיבלת ולא אהבת, ומה עשית איתה?' },
+    account:    { ar: 'احكِ لي عن شهر لم تحقق فيه النتيجة — ما الذي كان بيدك أنت؟', he: 'ספר על חודש שלא עמדת בתוצאה — מה היה בשליטתך?' }
+  };
+  var NC_FLAG_IQ = {
+    study:      { ar: 'ذكرت أن لديك دراسة — ما هي الساعات بالضبط وكيف ستنظّمها مع الدوام؟', he: 'ציינת לימודים — מהן השעות ואיך הן משתלבות?' },
+    second_job: { ar: 'ما حجم الوقت الذي يأخذه عملك الآخر، وماذا سيحدث عند التعارض؟', he: 'כמה זמן לוקחת העבודה הנוספת ומה יקרה בהתנגשות?' },
+    schedule:   { ar: 'كيف ستضمن الالتزام بساعات الدوام الكاملة في الأشهر الأولى؟', he: 'איך תבטיח עמידה בשעות המלאות בחודשים הראשונים?' },
+    retention:  { ar: 'ما الذي يجعلك تستمر في وظيفة صعبة بدل البحث عن بديل؟', he: 'מה יגרום לך להישאר בתפקיד קשה במקום לחפש חלופה?' },
+    attendance: { ar: 'كيف تتعامل مع يوم تشعر فيه بتعب لكن لديك مواعيد عمل؟', he: 'איך אתה מתמודד עם יום שאתה עייף אבל יש פגישות?' },
+    conditional:{ ar: 'أعطني مثالاً على نتيجة حققتها في ظروف غير مناسبة إطلاقاً.', he: 'תן דוגמה לתוצאה שהשגת בתנאים ממש לא נוחים.' },
+    commitment_other: { ar: 'ما هو الالتزام الثابت لديك وهل يمكن تعديله؟', he: 'מהי ההתחייבות הקבועה והאם ניתן לשנותה?' }
+  };
+
+  function ncInterview(rep, lang) {
+    var he = lang === 'he', out = [], seen = {};
+    rep.score.flags.forEach(function (f) {
+      if (NC_FLAG_IQ[f.key] && !seen[f.key]) { seen[f.key] = 1; out.push(he ? NC_FLAG_IQ[f.key].he : NC_FLAG_IQ[f.key].ar); }
+    });
+    var weakest = NC.DIM_KEYS.filter(function (k) { return rep.score.dims[k] != null; })
+      .sort(function (a, b) { return rep.score.dims[a] - rep.score.dims[b]; }).slice(0, 2);
+    weakest.forEach(function (k) { out.push(he ? NC_IQ[k].he : NC_IQ[k].ar); });
+    if (rep.score.consistency != null && rep.score.consistency < 75) {
+      out.push(he ? 'זיהינו פערים בין תשובות דומות — נעבור עליהן יחד להבהרה.'
+                  : 'لاحظنا تبايناً بين إجابات متقاربة — دعنا نمر عليها معاً للتوضيح.');
+    }
+    return out.slice(0, 6);
+  }
+
   root.SDNA.Engine = {
     dna: dna, character: character, groupStats: groupStats, learnWeights: learnWeights,
     activeWeights: activeWeights, similarity: similarity, match: match, consistency: consistency,
     flags: flags, signals: signals, similarEmployees: similarEmployees, questionPower: questionPower,
     summary: summary, interviewQuestions: interviewQuestions, benchmarkCheck: benchmarkCheck,
     predictions: predictions, candAnswers: candAnswers, mergeAnswers: mergeAnswers, TK: TK,
-    status: status, mainDifferences: mainDifferences
+    status: status, mainDifferences: mainDifferences,
+    to6: to6, employee6: employee6, group6: group6, similarity6: similarity6,
+    candidateReport: candidateReport, calibrate6: calibrate6, focusStats: focusStats,
+    ncSummary: ncSummary, ncInterview: ncInterview
   };
 })(window);

@@ -3,7 +3,8 @@
    ============================================================ */
 (function (root) {
   'use strict';
-  var Q = root.SDNA.Q, Store = root.SDNA.Store, UI = root.SDNA.UI, Engine = root.SDNA.Engine, Art = root.SDNA.Art;
+  var Q = root.SDNA.Q, NC = root.SDNA.NC, Store = root.SDNA.Store, UI = root.SDNA.UI,
+      Engine = root.SDNA.Engine, Art = root.SDNA.Art;
   var T = UI.T, esc = UI.esc, TK = Engine.TK;
   var app, tab = 'dash', view = null, compareSel = [];
 
@@ -72,16 +73,16 @@
     s.employees.forEach(function (e) { g[e.group]++; });
     var cands = s.candidates;
     var high = cands.filter(function (c) {
-      var d = candDNA(c); return d && Engine.match(d, s).band === 'high';
+      var r = c.nc ? Engine.candidateReport(c, s) : null; return r && r.band === 'high';
     }).length;
     var gs = Engine.groupStats(s.employees);
     var pred = Engine.predictions(s);
 
     var funnel = [
       { l: UI.getLang() === 'he' ? 'מועמדים' : 'مرشحون', v: cands.length },
-      { l: UI.getLang() === 'he' ? 'סיימו שלב 1' : 'أكملوا المرحلة 1', v: cands.filter(function (c) { return c.s1; }).length },
-      { l: UI.getLang() === 'he' ? 'התאמה בינונית+' : 'تطابق متوسط فأعلى', v: cands.filter(function (c) { var d = candDNA(c); return d && Engine.match(d, s).band !== 'low'; }).length },
-      { l: UI.getLang() === 'he' ? 'הערכה מלאה' : 'تقييم كامل', v: cands.filter(function (c) { return c.s2; }).length },
+      { l: UI.getLang() === 'he' ? 'סיימו 25 שאלות' : 'أكملوا 25 سؤالاً', v: cands.filter(function (c) { return c.nc; }).length },
+      { l: UI.getLang() === 'he' ? 'סיימו Focus' : 'أكملوا تحدي التركيز', v: cands.filter(function (c) { return c.focus; }).length },
+      { l: UI.getLang() === 'he' ? 'התאמה בינונית+' : 'تطابق متوسط فأعلى', v: cands.filter(function (c) { var r = c.nc ? Engine.candidateReport(c, s) : null; return r && r.band !== 'low'; }).length },
       { l: UI.getLang() === 'he' ? 'ראיון' : 'مقابلة', v: cands.filter(function (c) { return c.stage >= 5; }).length },
       { l: UI.getLang() === 'he' ? 'התקבלו' : 'تم توظيفهم', v: cands.filter(function (c) { return c.decision === 'hired'; }).length }
     ];
@@ -256,6 +257,15 @@
         '<p class="muted sm">' + esc(UI.getLang() === 'he' ? 'העובד יכול להיכנס למשחק עם הקוד שלו מהמסך הראשי.' : 'يستطيع الموظف الدخول إلى التحدي باستخدام كوده من الشاشة الرئيسية.') + '</p></div>';
     }
     out += '</div>';
+    out += '<div class="card"><h3>🧠 ' + esc(T('focus_title')) + '</h3>' +
+      (e.focus ? '<div class="focus-head">' + UI.ring(e.focus.focus, 'FOCUS', 110) +
+        '<div class="focus-subs">' + ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
+          var SUB = root.SDNA.Focus.SUB;
+          return '<div class="fsub"><small>' + esc(UI.getLang() === 'he' ? SUB[k].he : SUB[k].ar) + '</small>' +
+            '<b style="color:' + UI.tone(e.focus.sub[k]) + '">' + e.focus.sub[k] + '</b></div>';
+        }).join('') + '</div></div>'
+        : '<p class="muted">' + esc(T('focus_nodata')) + '</p>') +
+      '<button class="btn" data-focus-emp="' + e.id + '">▶ ' + esc(T('play_focus')) + '</button></div>';
     return out;
   }
 
@@ -263,44 +273,61 @@
     var b = document.getElementById('back'); if (b) b.onclick = function () { view = null; body(); };
     var ed = document.getElementById('editEmp');
     if (ed) ed.onclick = function () { empForm(st().employees.filter(function (x) { return x.id === view.id; })[0]); };
+    UI.$$('[data-focus-emp]', m).forEach(function (btn) {
+      btn.onclick = function () {
+        var e = st().employees.filter(function (x) { return x.id === btn.dataset.focusEmp; })[0];
+        root.SDNA.Game.focusOnly({ id: e.id, type: 'employee', name: e.name }, 'employee', function () {
+          root.SDNA.App.go('manager');
+        });
+      };
+    });
   }
 
-  /* ================= CANDIDATES ================= */
+  /* ================= CANDIDATES (25-question model) ================= */
+  function report(c) { return c.nc ? Engine.candidateReport(c, st()) : null; }
+
   function candidates() {
     var s = st();
     var rows = s.candidates.map(function (c) {
-      var d1 = c.s1 ? Engine.dna(c.s1.answers) : null;
-      var dAll = candDNA(c);
-      var m1 = d1 ? Engine.match(d1, s) : null;
-      var mAll = c.s2 && dAll ? Engine.match(dAll, s) : null;
-      var cons = dAll ? Engine.consistency(Engine.candAnswers(c)) : null;
-      var fl = dAll ? Engine.flags(Engine.candAnswers(c), dAll, cons) : [];
+      var rep = report(c);
+      var sc = rep && rep.score;
       return '<tr>' +
-        '<td><b>' + esc(c.name) + '</b><small class="muted"> · ' + esc(c.phone) + '</small></td>' +
-        '<td><span class="stage-tag">' + esc((UI.DICT.stage_names[UI.getLang()] || UI.DICT.stage_names.ar)[Math.min(7, c.stage)]) + '</span></td>' +
-        '<td>' + (m1 ? band(m1) : '—') + '</td>' +
-        '<td>' + (mAll ? band(mAll) : '—') + '</td>' +
-        '<td>' + (cons && cons.score != null ? '<span style="color:' + UI.tone(cons.score) + '">' + cons.score + '%</span>' : '—') + '</td>' +
-        '<td>' + (fl.length ? '<span class="flag-n">🚩 ' + fl.length + '</span>' : '—') + '</td>' +
-        '<td>' + (m1 ? statusChip(Engine.status(m1, s)) : '—') + '</td>' +
-        '<td>' + (c.decision ? '<span class="pill" style="--c:' + (c.decision === 'hired' ? '#10b981' : c.decision === 'reject' ? '#ef4444' : '#3b82f6') + '">' + esc(c.decision) + '</span>' : '—') + '</td>' +
+        '<td><b>' + esc(c.name) + '</b><small class="muted"> · ' + esc(c.phone || '—') + '</small></td>' +
+        '<td class="muted">' + esc(c.createdAt) + '</td>' +
+        '<td>' + stageTag(c) + '</td>' +
+        '<td>' + (sc ? bandNum(sc.match, rep.band) : '—') + '</td>' +
+        '<td>' + (rep && rep.sims.strong != null ? '<b style="color:' + UI.tone(rep.sims.strong) + '">' + rep.sims.strong + '%</b>' : '—') + '</td>' +
+        '<td>' + (sc && sc.consistency != null ? '<span style="color:' + UI.tone(sc.consistency) + '">' + sc.consistency + '%</span>' : '—') + '</td>' +
+        '<td>' + (c.focus ? '<span style="color:' + UI.tone(c.focus.focus) + '">' + c.focus.focus + '</span>' : '—') + '</td>' +
+        '<td>' + (sc && sc.flags.length ? '<span class="flag-n">🚩 ' + sc.flags.length + '</span>' : '—') + '</td>' +
+        '<td>' + (rep ? statusChip(rep.band) : '—') + '</td>' +
         '<td><button class="btn btn-xs" data-open="' + c.id + '">' + esc(T('view')) + '</button></td></tr>';
     }).join('');
-    return head(T('nav_cand'), T('open_anyway')) +
+    return head(T('nav_cand'), NC.count + ' ' + esc(T('q_of')) + ' · ' + T('open_anyway')) +
       '<div class="card"><table class="tbl"><thead><tr>' +
-      ['name', 'stage', 'initial_match', 'full_match', 'consistency', 'flags', 'status', 'decision', ''].map(function (k) {
+      ['name', 'date', 'stage', 'full_match', 'sim_strong', 'consistency_idx', 'focus_score', 'flags', 'status', ''].map(function (k) {
         return '<th>' + (k ? esc(T(k)) : '') + '</th>';
       }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
-  function statusChip(stt) {
-    var lbl = stt.key === 'continue' ? T('status_continue') : stt.key === 'review' ? T('status_review') : T('status_low');
-    return '<span class="pill" style="--c:' + stt.color + '">' + stt.dot + ' ' + esc(lbl) + '</span>';
+  function stageTag(c) {
+    var lang = UI.getLang();
+    var txt = c.decision === 'hired' ? (lang === 'he' ? 'התקבל' : 'تم التوظيف')
+            : c.decision === 'interview' ? (lang === 'he' ? 'ראיון' : 'مقابلة')
+            : c.decision === 'reject' ? (lang === 'he' ? 'נעצר' : 'متوقف')
+            : c.focus ? (lang === 'he' ? 'הושלם + פוקוס' : 'مكتمل + التركيز')
+            : c.nc ? (lang === 'he' ? 'הושלם' : 'مكتمل')
+            : (lang === 'he' ? 'נרשם' : 'مسجّل');
+    return '<span class="stage-tag">' + esc(txt) + '</span>';
   }
 
-  function band(m) {
-    var c = m.band === 'high' ? '#10b981' : m.band === 'mid' ? '#f59e0b' : '#ef4444';
-    return '<b style="color:' + c + '">' + m.match + '%</b>';
+  function bandNum(v, band) {
+    var c = band === 'high' ? '#10b981' : band === 'mid' ? '#f59e0b' : '#ef4444';
+    return '<b style="color:' + c + '">' + v + '%</b>';
+  }
+  function statusChip(band) {
+    var m = { high: ['🟢', '#10b981', 'status_continue'], mid: ['🟡', '#f59e0b', 'status_review'], low: ['🔴', '#ef4444', 'status_low'] }[band];
+    return '<span class="pill" style="--c:' + m[1] + '">' + m[0] + ' ' + esc(T(m[2])) + '</span>';
   }
 
   function bindCandidates(m) {
@@ -312,86 +339,73 @@
   function candProfile(id) {
     var s = st(), c = s.candidates.filter(function (x) { return x.id === id; })[0];
     if (!c) return '<p>—</p>';
-    var ans = Engine.candAnswers(c);
     var out = '<button class="btn btn-ghost btn-xs" id="back">‹ ' + esc(T('back')) + '</button>';
-    if (!ans.length) {
-      return out + head(c.name, c.phone + ' · ' + c.email) + '<div class="card"><p class="muted">' + esc(T('no_assessment')) + '</p></div>';
+    var rep = report(c);
+    if (!rep) {
+      return out + head(c.name, c.phone + ' · ' + c.email) +
+        '<div class="card"><p class="muted">' + esc(T('no_assessment')) + '</p></div>';
     }
-    var d = Engine.dna(ans), m = Engine.match(d, s), cons = Engine.consistency(ans);
-    var d1 = c.s1 ? Engine.dna(c.s1.answers) : null;
-    var m1 = d1 ? Engine.match(d1, s) : null;
-    var stt = Engine.status(m1 || m, s);
-    var diffs = Engine.mainDifferences(d, s.employees, 4);
-    var fl = Engine.flags(ans, d, cons), sig = Engine.signals(d);
-    var gs = Engine.groupStats(s.employees), w = Engine.activeWeights(s);
-    var lang = UI.getLang();
-    var sum = Engine.summary(d, m, fl, cons, lang);
-    var iq = Engine.interviewQuestions(fl, d, lang);
-    var ch = Engine.character(d);
+    var lang = UI.getLang(), sc = rep.score, D = NC.DIMS;
+    var dn = function (k) { return lang === 'he' ? D[k].he : D[k].ar; };
+    var strong = rep.groups.strong.dims;
+    var rec = rep.band === 'high' ? T('rec_proceed') : rep.band === 'mid' ? T('rec_review') : T('rec_low');
 
     out += head(c.name, c.phone + ' · ' + c.email + ' · ' + c.createdAt,
       '<button class="btn" onclick="window.print()">' + esc(T('print')) + '</button>');
-    out += '<div class="match-hero ' + m.band + '">' +
-      '<div>' + UI.ring(m.match, 'MATCH', 140) + '</div>' +
-      '<div class="mh-info"><b>' + esc(T('band_' + (m.band === 'mid' ? 'mid' : m.band))) + '</b>' +
-      '<div class="mh-sims">' +
-        simChip(T('group_strong'), m.simStrong, '#10b981') +
-        simChip(T('group_medium'), m.simMedium, '#3b82f6') +
-        simChip(T('group_low'), m.simLow, '#ef4444') +
-      '</div>' +
-      '<div class="mh-sims"><span class="chip">' + esc(T('consistency')) + ': <b style="color:' + UI.tone(cons.score || 0) + '">' + (cons.score == null ? '—' : cons.score + '%') + '</b></span>' +
-      '<span class="chip">' + ch.emoji + ' ' + esc(ch.key) + '</span>' +
-      (m1 ? '<span class="chip">' + esc(T('initial_match')) + ': <b>' + m1.match + '%</b> ' + statusChip(stt) + '</span>' : '') + '</div>' +
-      (m.band === 'low' ? '<div class="alert warn-box">⚠ ' + esc(T('low_alert')) + '</div>' : '') +
-      (!c.s2 ? '<div class="btn-row">' +
-         '<button class="btn ' + (stt.key === 'low' ? '' : 'btn-primary') + '" data-stage2="' + c.id + '">▶ ' +
-         esc(stt.key === 'low' ? T('continue_anyway') : T('play_stage2')) + '</button></div>' : '') +
+
+    /* hero */
+    out += '<div class="match-hero ' + rep.band + '">' +
+      '<div>' + UI.ring(sc.match, 'SALES DNA', 140) + '</div>' +
+      '<div class="mh-info"><b>' + esc(T('band_' + rep.band)) + '</b>' +
+        '<div class="mh-sims">' +
+          simChip(T('group_strong'), rep.sims.strong, '#10b981') +
+          simChip(T('group_medium'), rep.sims.medium, '#3b82f6') +
+          simChip(T('group_low'), rep.sims.low, '#ef4444') +
+        '</div>' +
+        '<div class="mh-sims"><span class="chip">' + esc(T('consistency_idx')) + ': <b style="color:' +
+          UI.tone(sc.consistency || 0) + '">' + (sc.consistency == null ? '—' : sc.consistency + '%') + '</b></span>' +
+          (c.focus ? '<span class="chip">🧠 ' + esc(T('focus_score')) + ': <b style="color:' + UI.tone(c.focus.focus) + '">' +
+            c.focus.focus + '</b></span>' : '') +
+          '<span class="chip">' + esc(T('run_25')) + '</span></div>' +
+        '<div class="rec-box ' + rep.band + '">' + esc(T('recommendation')) + ': <b>' + esc(rec) + '</b></div>' +
       '</div></div>';
 
+    /* six dimensions + radar */
     out += '<div class="grid2">' +
-      '<div class="card"><h3>CANDIDATE SALES DNA</h3>' +
-        UI.bars(TK.map(function (t) { return { label: lname(t), icon: Q.TRAITS[t].icon, value: d.traits[t], color: Q.TRAITS[t].color }; })) + '</div>' +
+      '<div class="card"><h3>' + esc(T('dna_dims')) + '</h3>' +
+        NC.DIM_KEYS.map(function (k) {
+          var v = sc.dims[k], b = strong[k];
+          return '<div class="dim-row"><div class="dim-lbl">' + D[k].icon + ' ' + esc(dn(k)) +
+            '<small class="muted"> ' + (rep.weights[k] || D[k].w) + '%</small></div>' +
+            '<div class="dim-track"><div class="dim-fill" style="width:' + (v || 0) + '%;background:' + D[k].color + '"></div>' +
+            (b != null ? '<i class="dim-bench" style="inset-inline-start:' + b + '%" title="' + esc(T('group_strong')) + ' ' + b + '"></i>' : '') +
+            '</div><div class="dim-val" style="color:' + UI.tone(v || 0) + '">' + (v == null ? '—' : v) + '</div></div>';
+        }).join('') +
+        '<p class="muted sm">▍ ' + esc(lang === 'he' ? 'הסימון האנכי = ממוצע העובדים החזקים' : 'الخط العمودي = متوسط الموظفين الأقوياء') + '</p>' +
+      '</div>' +
       '<div class="card"><h3>' + esc(T('vs_strong')) + '</h3>' +
-        UI.radar([{ name: c.name, color: '#8b5cf6', traits: d.traits },
-                  { name: T('group_strong'), color: '#10b981', traits: gs.strong.traits }], { size: 340 }) + '</div>' +
+        UI.radar([{ name: c.name, color: '#8b5cf6', traits: sc.dims },
+                  { name: T('group_strong'), color: '#10b981', traits: strong }],
+                 { size: 340, keys: NC.DIM_KEYS, dict: D }) + '</div>' +
       '</div>';
 
-    out += '<div class="grid2">' +
-      '<div class="card"><h3>' + esc(T('strong_sig')) + '</h3>' +
-        (sig.length ? sig.map(function (x) { return '<div class="sig">🔥 ' + esc(lname(x.key)) + ' <b>' + x.val + '</b></div>'; }).join('') :
-          '<p class="muted">—</p>') + '</div>' +
-      '<div class="card"><h3>' + esc(T('risk_flags')) + '</h3>' +
-        (fl.length ? fl.map(function (x) {
-          return '<div class="flag sev' + x.sev + '">🚩 ' + esc(lang === 'he' ? x.he : x.ar) + (x.val != null ? ' <b>' + x.val + '</b>' : '') + '</div>';
-        }).join('') : '<p class="muted">—</p>') + '</div>' +
-      '</div>';
+    /* flags */
+    out += '<div class="grid2"><div class="card"><h3>FLAGS</h3>' + flagCards(sc, strong, lang) + '</div>' +
+      '<div class="card ai-card"><h3>🤖 ' + esc(T('ai_summary')) + '</h3>' +
+      Engine.ncSummary(rep, lang).map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + '</div></div>';
 
-    if (diffs.length) {
-      out += '<div class="card"><h3>' + esc(T('main_diff')) + '</h3>' +
-        diffs.map(function (x) {
-          return '<div class="diff-row">' + Q.TRAITS[x.key].icon + ' <b>' + esc(lname(x.key)) + '</b>' +
-            '<span class="muted sm">' + x.val + ' ' + (UI.getLang() === 'he' ? 'מול' : 'مقابل') + ' ' + x.strong + '</span>' +
-            '<span class="diff-gap">-' + Math.round(x.gap) + '</span></div>';
-        }).join('') + '</div>';
-    }
+    /* focus challenge */
+    out += focusCard(c, s);
 
-    out += '<div class="card ai-card"><h3>🤖 ' + esc(T('ai_summary')) + '</h3>' +
-      sum.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '</div>';
-
-    out += '<div class="card"><h3>🎤 ' + esc(T('ask_these')) + '</h3><ol class="iq">' +
-      iq.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div>';
-
-    out += '<div class="grid2"><div class="card"><h3>' + esc(T('similar_emp')) + '</h3>' +
-      Engine.similarEmployees(d, s.employees, w, 5).map(function (r) {
-        return '<div class="sim-row"><span class="pill" style="--c:' + gcolor(r.emp.group) + '">' + esc(gname(r.emp.group)) + '</span>' +
-          '<b>' + esc(r.emp.name) + '</b><span class="sim-v">' + r.sim + '%</span></div>';
-      }).join('') + '</div>';
-
-    out += '<div class="card"><h3>' + esc(T('decision')) + '</h3>' +
+    /* interview questions + decision */
+    out += '<div class="grid2"><div class="card"><h3>🎤 ' + esc(T('ask_these')) + '</h3><ol class="iq">' +
+      Engine.ncInterview(rep, lang).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div>' +
+      '<div class="card"><h3>' + esc(T('decision')) + '</h3>' +
       '<div class="btn-row">' +
       '<button class="btn btn-primary" data-dec="interview">' + esc(T('proceed')) + '</button>' +
       '<button class="btn btn-ok" data-dec="hired">' + esc(T('hire')) + '</button>' +
       '<button class="btn btn-danger" data-dec="reject">' + esc(T('reject')) + '</button></div>' +
+      '<p class="muted sm">' + esc(T('open_anyway')) + '</p>' +
       '<h4>' + esc(T('followup')) + '</h4>' +
       '<div class="form inline">' +
       '<label class="fld"><span>' + esc(UI.getLang() === 'he' ? 'יום' : 'اليوم') + '</span><select id="fuDay"><option>30</option><option>90</option><option>180</option></select></label>' +
@@ -402,6 +416,77 @@
       }).join('') + '</tbody></table>' : '') +
       '</div></div>';
     return out;
+  }
+
+  /* 🟢 / 🟡 / 🔴 cards — benchmark wording, never a personal verdict */
+  function flagCards(sc, strong, lang) {
+    var D = NC.DIMS, out = [];
+    var hard = sc.flags.map(function (f) {
+      return { dot: f.sev >= 3 ? '🔴' : '🟡', txt: lang === 'he' ? f.he : f.ar, sev: f.sev };
+    });
+    if (!hard.length) {
+      out.push({ dot: '🟢', txt: lang === 'he' ? 'לא זוהתה בעיית מחויבות מהותית' : 'لا توجد مشكلة التزام جوهرية', sev: 0 });
+    }
+    NC.DIM_KEYS.forEach(function (k) {
+      var v = sc.dims[k], b = strong[k];
+      if (v == null || b == null) return;
+      var name = lang === 'he' ? D[k].he : D[k].ar;
+      var d = v - b;
+      if (d >= 6) out.push({ dot: '🟢', txt: (lang === 'he' ? 'גבוה מהבנצ׳מרק ב' : 'أعلى من معيار الأقوياء في ') + name + ' (' + v + ' / ' + b + ')', sev: 0 });
+      else if (d >= -4) out.push({ dot: '🟢', txt: name + (lang === 'he' ? ' בקו עם העובדים החזקים' : ' بمستوى الموظفين الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 0 });
+      else if (d >= -14) out.push({ dot: '🟡', txt: name + (lang === 'he' ? ' מעט מתחת לבנצ׳מרק' : ' أقل قليلاً من معيار الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 1 });
+      else out.push({ dot: '🔴', txt: name + (lang === 'he' ? ' נמוך משמעותית מהבנצ׳מרק' : ' أقل بوضوح من معيار الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 2 });
+    });
+    if (sc.consistency != null && sc.consistency < 70) {
+      out.push({ dot: '🔴', txt: (lang === 'he' ? 'עקביות נמוכה בין שאלות ההצלבה' : 'اتساق منخفض في أسئلة التقاطع') + ' (' + sc.consistency + '%)', sev: 2 });
+    }
+    return out.sort(function (a, b) { return b.sev - a.sev; })
+      .map(function (f) { return '<div class="flag sev' + f.sev + '">' + f.dot + ' ' + esc(f.txt) + '</div>'; }).join('');
+  }
+
+  /* FOCUS CHALLENGE — always reported separately from the match */
+  function focusCard(c, s) {
+    var lang = UI.getLang(), fs = Engine.focusStats(s.employees);
+    if (!c.focus) {
+      return '<div class="card"><h3>🧠 ' + esc(T('focus_title')) + '</h3>' +
+        '<p class="muted">' + esc(T('focus_nodata')) + '</p>' +
+        '<button class="btn" data-focus="' + c.id + '">▶ ' + esc(T('play_focus')) + '</button></div>';
+    }
+    var f = c.focus, SUB = root.SDNA.Focus.SUB;
+    var bench = fs.all.focus;
+    var verdict = bench == null ? null : (f.focus >= bench + 5 ? 'focus_above' : f.focus >= bench - 5 ? 'focus_at' : 'focus_below');
+    return '<div class="card"><h3>🧠 ' + esc(T('focus_title')) + ' <small class="muted">— ' + esc(T('focus_note')) + '</small></h3>' +
+      '<div class="focus-head">' + UI.ring(f.focus, 'FOCUS', 120) +
+        '<div class="focus-subs">' +
+          ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
+            return '<div class="fsub"><small>' + esc(lang === 'he' ? SUB[k].he : SUB[k].ar) + '</small>' +
+              '<b style="color:' + UI.tone(f.sub[k]) + '">' + f.sub[k] + '</b></div>';
+          }).join('') +
+        '</div></div>' +
+      '<div class="focus-raw">' +
+        rawItem('👁 ' + (lang === 'he' ? 'הבדלים שנמצאו' : 'الاختلافات التي وُجدت'), f.raw.found + '/' + f.raw.total) +
+        rawItem('⏱ ' + (lang === 'he' ? 'זיהוי ראשון' : 'أول اكتشاف'), (f.raw.first != null ? f.raw.first + 's' : '—')) +
+        rawItem('⏳ ' + (lang === 'he' ? 'זמן כולל' : 'الوقت الكلي'), (f.raw.elapsed || 0) + 's') +
+        rawItem('❌ ' + (lang === 'he' ? 'לחיצות שגויות' : 'ضغطات خاطئة'), f.raw.wrong) +
+        rawItem('⚡ ' + (lang === 'he' ? 'תשובות נכונות (Quick Scan)' : 'إجابات صحيحة (Quick Scan)'), f.raw.scanCorrect + '/' + f.raw.scanTotal) +
+        rawItem('🕒 ' + (lang === 'he' ? 'זמן תגובה ממוצע' : 'متوسط زمن الرد'), f.raw.scanAvg + 's') +
+      '</div>' +
+      (bench != null ? '<div class="alert ' + (verdict === 'focus_below' ? 'warn-box' : 'ok-box') + '">' +
+        esc(T('focus_bench')) + ': <b>' + esc(T(verdict)) + '</b> — ' +
+        esc(lang === 'he' ? 'ממוצע צוות ' : 'متوسط الفريق ') + bench + ' (' + fs.all.n + ')' +
+        '</div>' : '') +
+      '<table class="tbl sm"><thead><tr><th></th><th>FOCUS</th><th>n</th></tr></thead><tbody>' +
+        ['strong', 'medium', 'low'].map(function (g) {
+          return '<tr><td><span class="pill" style="--c:' + gcolor(g) + '">' + esc(gname(g)) + '</span></td>' +
+            '<td>' + (fs[g].focus == null ? '—' : fs[g].focus) + '</td><td class="muted">' + fs[g].n + '</td></tr>';
+        }).join('') + '</tbody></table>' +
+      '<p class="muted sm">' + esc(fs.reliable
+        ? (lang === 'he' ? 'קיים פער עקבי בין חזקים לחלשים במדד הזה — עדיין לא נכנס לציון ההתאמה.'
+                         : 'يوجد فارق ثابت بين الأقوياء والضعفاء في هذا المؤشر — ومع ذلك لا يدخل في نسبة التطابق.')
+        : T('focus_corr_none')) + '</p></div>';
+  }
+  function rawItem(l, v) {
+    return '<div class="fraw"><small>' + esc(l) + '</small><b>' + esc(String(v)) + '</b></div>';
   }
 
   function simChip(l, v, c) {
@@ -417,10 +502,11 @@
         UI.toast('✔ ' + dec); body();
       };
     });
-    UI.$$('[data-stage2]', m).forEach(function (btn) {
+    UI.$$('[data-focus]', m).forEach(function (btn) {
       btn.onclick = function () {
-        Store.updateCandidate(btn.dataset.stage2, { allowStage2: true });
-        root.SDNA.Game.resume(btn.dataset.stage2);
+        root.SDNA.Game.focusOnly({ id: btn.dataset.focus, type: 'candidate', name: '' }, 'candidate', function () {
+          root.SDNA.App.go('manager');
+        });
       };
     });
     var add = document.getElementById('fuAdd');
@@ -472,6 +558,13 @@
         }).join('') + '</ol>' +
         '<button class="btn" id="applyW">' + esc(T('apply_weights')) + '</button> ' +
         '<button class="btn btn-ghost" id="autoW">' + esc(T('auto_weights')) + '</button>' +
+        '<h4>' + esc(T('weights_25')) + '</h4>' +
+        '<div class="chips">' + NC.DIM_KEYS.map(function (k) {
+          var w = (st().settings.ncWeights || NC.defaultWeights())[k];
+          return '<span class="chip">' + NC.DIMS[k].icon + ' ' + esc(UI.getLang() === 'he' ? NC.DIMS[k].he : NC.DIMS[k].ar) + ' <b>' + w + '%</b></span>';
+        }).join('') + '<span class="chip">' + esc(T('consistency_idx')) + ' <b>' + NC.CONSISTENCY_W + '%</b></span></div>' +
+        '<div class="btn-row"><button class="btn" id="calW">⚖ ' + esc(T('calibrate')) + '</button>' +
+        '<button class="btn btn-ghost" id="resetNcW">↺</button></div>' +
         (lw.learned ? '' : '<p class="muted sm">⚠ ' + esc(UI.getLang() === 'he' ? 'מעט מדי עובדים שנבדקו — המשקלים עדיין לא יציבים.' : 'عدد الموظفين المفحوصين قليل — الأوزان غير مستقرة بعد.') + '</p>') +
       '</div>' +
       '<div class="card"><h3>' + esc(T('top_questions')) + '</h3><table class="tbl sm"><thead><tr><th>Q</th><th>' + esc(T('group_strong')) + '</th><th>' + esc(T('group_low')) + '</th><th>Δ</th></tr></thead><tbody>' +
@@ -505,6 +598,15 @@
     };
     var au = document.getElementById('autoW');
     if (au) au.onclick = function () { var s = st(); s.settings.weights = null; Store.save(); UI.toast('✔ ' + T('auto_weights')); body(); };
+    var cal = document.getElementById('calW');
+    if (cal) cal.onclick = function () {
+      var s = st(), r = Engine.calibrate6(s.employees);
+      if (!r.enough) return UI.toast(UI.getLang() === 'he' ? 'אין מספיק עובדים שנבדקו' : 'عدد الموظفين المفحوصين غير كافٍ', 'bad');
+      s.settings.ncWeights = r.weights; Store.save();
+      UI.confetti(30); UI.toast('✔ ' + T('calibrate')); body();
+    };
+    var rw = document.getElementById('resetNcW');
+    if (rw) rw.onclick = function () { var s = st(); s.settings.ncWeights = null; Store.save(); UI.toast('✔'); body(); };
   }
 
   /* ================= QUESTION BANK ================= */
@@ -552,8 +654,7 @@
     var s = st();
     var people = s.employees.filter(function (e) { return e.assessment; })
       .map(function (e) { return { id: 'E:' + e.id, name: e.name, tag: gname(e.group), color: gcolor(e.group), traits: empDNA(e).traits }; })
-      .concat(s.candidates.filter(function (c) { return Engine.candAnswers(c).length; })
-        .map(function (c) { return { id: 'C:' + c.id, name: c.name, tag: 'CANDIDATE', color: '#8b5cf6', traits: candDNA(c).traits }; }));
+      ;
     var gs = Engine.groupStats(s.employees);
     var sel = people.filter(function (p) { return compareSel.indexOf(p.id) >= 0; });
     var palette = ['#8b5cf6', '#22d3ee', '#f59e0b', '#ec4899'];
@@ -596,7 +697,10 @@
           [55, 60, 65, 70, 75, 80].map(function (v) {
             return '<option value="' + v + '"' + (s.settings.thresholds.stage1 === v ? ' selected' : '') + '>' + v + '%</option>';
           }).join('') + '</select></label>' +
-        '<p class="muted sm">' + esc(T('open_anyway')) + '</p>' +
+        '<label class="fld"><span>🧠 ' + esc(T('focus_title')) + '</span><select id="fxOn">' +
+          '<option value="1"' + (s.settings.focusEnabled ? ' selected' : '') + '>' + esc(UI.getLang() === 'he' ? 'פעיל' : 'مفعّل') + '</option>' +
+          '<option value="0"' + (s.settings.focusEnabled ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'כבוי' : 'معطّل') + '</option></select></label>' +
+        '<p class="muted sm">' + esc(T('open_anyway')) + ' · ' + esc(T('focus_note')) + '</p>' +
         '<button class="btn btn-primary" id="saveTh">' + esc(T('save')) + '</button></div>' +
       '<div class="card"><h3>PIN</h3>' +
         '<label class="fld"><span>' + esc(T('pin')) + '</span><input id="pinIn" value="' + esc(s.settings.pin) + '"></label>' +
@@ -629,6 +733,7 @@
       s.settings.thresholds.high = Number(document.getElementById('thHigh').value);
       s.settings.thresholds.mid = Number(document.getElementById('thMid').value);
       s.settings.thresholds.stage1 = Number(document.getElementById('thStage1').value);
+      s.settings.focusEnabled = document.getElementById('fxOn').value === '1';
       Store.save(); UI.toast('✔'); body();
     };
     document.getElementById('savePin').onclick = function () {

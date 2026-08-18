@@ -1,12 +1,13 @@
 /* ============================================================
-   SALES DNA — STATE / STORAGE / SEED DATA  (V2)
-   Local-first: everything lives in localStorage (demo mode).
+   SALES DNA — STATE / STORAGE / SEED DATA  (V3)
+   employees → 12-trait behaviour model (36 scenarios)
+   candidates → fixed 25-question model + FOCUS bonus level
    ============================================================ */
 (function (root) {
   'use strict';
 
-  var KEY = 'sdna_state_v2';
-  var Q = root.SDNA.Q;
+  var KEY = 'sdna_state_v3';
+  var Q = root.SDNA.Q, NC = root.SDNA.NC;
 
   /* ---------- deterministic RNG (stable demo data) ---------- */
   function mulberry32(a) {
@@ -27,30 +28,15 @@
   }
   function uid(p) { return (p || 'id') + '_' + Math.random().toString(36).slice(2, 9); }
 
-  /* ---------- assessment blueprints ----------
-     employee : sales behaviour only (zone street = target commitment)
-     c1       : QUICK MATCH — core traits, 13 questions
-     c2       : full game — depth + availability + battle + boss    */
+  /* ---------- employee blueprint (behaviour only) ---------- */
   var BLUEPRINT = {
     employee: { aud: 'emp', blocks: [
       { zone: 'tower', n: 5 }, { zone: 'arena', n: 5 }, { zone: 'hq', n: 5 },
       { zone: 'lab', n: 4 }, { zone: 'trust', n: 4 }, { zone: 'street', n: 4 },
       { zone: 'battle', n: 5 }, { zone: 'final', n: 4 }
-    ]},
-    c1: { aud: 'cand', blocks: [
-      { zone: 'tower', n: 3, maxDiff: 2 }, { zone: 'arena', n: 3, maxDiff: 2 },
-      { zone: 'hq', n: 2, maxDiff: 2 }, { zone: 'trust', n: 2, maxDiff: 2 },
-      { zone: 'street', n: 3, must: ['C01', 'C03', 'C04'] }
-    ]},
-    c2: { aud: 'cand', blocks: [
-      { zone: 'tower', n: 2 }, { zone: 'arena', n: 3 }, { zone: 'hq', n: 2 },
-      { zone: 'lab', n: 3 }, { zone: 'trust', n: 2 },
-      { zone: 'street', n: 4, must: ['AV01', 'AV05', 'C05'] },
-      { zone: 'battle', n: 4 }, { zone: 'final', n: 3 }
     ]}
   };
 
-  /* builds an ordered plan: [{zone, qs:[qid,...]}] */
   function buildPlan(mode, rnd, exclude) {
     rnd = rnd || Math.random;
     var spec = BLUEPRINT[mode], aud = spec.aud;
@@ -73,12 +59,15 @@
   /* ---------- default state ---------- */
   function defaults() {
     return {
-      v: 2,
+      v: 3,
       settings: {
         lang: 'ar',
         pin: '1234',
-        thresholds: { high: 80, mid: 65, stage1: 65 },
-        weights: null,          // null => learned from company data
+        thresholds: { high: 80, mid: 65 },
+        weights: null,          // employee 12-trait weights (null => learned)
+        ncWeights: null,        // candidate 6-dimension weights (null => spec defaults)
+        focusEnabled: true,     // bonus focus level
+        focusInDecision: false, // never part of the match score unless proven
         sound: true,
         requirePhone: false,
         requireEmail: false
@@ -95,8 +84,8 @@
       var raw = localStorage.getItem(KEY);
       state = raw ? JSON.parse(raw) : null;
     } catch (e) { state = null; }
-    if (!state || state.v !== 2) { state = defaults(); seed(); save(); }
-    if (!state.settings.thresholds.stage1) state.settings.thresholds.stage1 = 65;
+    if (!state || state.v !== 3) { state = defaults(); seed(); save(); }
+    if (state.settings.focusEnabled === undefined) state.settings.focusEnabled = true;
     return state;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
@@ -112,10 +101,10 @@
               'صفدي', 'قاسم', 'نصار', 'دراوشة', 'بدران', 'عوض'];
   var DEPTS = ['B2B', 'Retail', 'Telesales', 'Field'];
 
+  /* --- employee behaviour simulation (12-trait model) --- */
   function simAnswer(q, group, rnd) {
     var bias = group === 'strong' ? 0.86 : group === 'medium' ? 0.62 : 0.36;
-    var noise = (rnd() - 0.5) * 0.45;
-    var want = Math.max(0, Math.min(1, bias + noise)) * 100;
+    var want = Math.max(0, Math.min(1, bias + (rnd() - 0.5) * 0.45)) * 100;
     var best = 0, bd = 1e9;
     q.a.forEach(function (o, i) {
       var d = Math.abs(o.s - want);
@@ -123,7 +112,6 @@
     });
     return best;
   }
-
   function planAnswers(plan, group, rnd) {
     var answers = [];
     plan.forEach(function (blk) {
@@ -139,6 +127,61 @@
       });
     });
     return answers;
+  }
+
+  /* --- candidate 25-question simulation --- */
+  function optQuality(q, oi) {
+    var opt = q.a[oi], sum = 0, max = 0;
+    NC.DIM_KEYS.forEach(function (k) {
+      var m = 0;
+      q.a.forEach(function (o) { if (o.p[k] != null && o.p[k] > m) m = o.p[k]; });
+      max += m;
+      sum += opt.p[k] || 0;
+    });
+    return max ? sum / max : 0.5;
+  }
+  function simNc(group, rnd) {
+    var bias = group === 'strong' ? 0.85 : group === 'medium' ? 0.6 : 0.34;
+    var answers = [];
+    NC.plan().forEach(function (blk) {
+      blk.qs.forEach(function (qid) {
+        var q = NC.get(qid);
+        var want = Math.max(0, Math.min(1, bias + (rnd() - 0.5) * 0.5));
+        var best = 0, bd = 1e9;
+        q.a.forEach(function (o, i) {
+          var d = Math.abs(optQuality(q, i) - want);
+          if (d < bd) { bd = d; best = i; }
+        });
+        answers.push({ qid: qid, opt: best, lvl: q.lvl });
+        var fu = q.a[best].fu;
+        if (fu && NC.get(fu)) {
+          var fq = NC.get(fu), fb = 0, fbd = 1e9;
+          fq.a.forEach(function (o, i) {
+            var d = Math.abs(optQuality(fq, i) - want);
+            if (d < fbd) { fbd = d; fb = i; }
+          });
+          answers.push({ qid: fu, opt: fb, lvl: fq.lvl, extra: true });
+        }
+      });
+    });
+    return answers;
+  }
+
+  /* --- focus mini-game simulation (deliberately only loosely tied to group) --- */
+  function simFocus(group, rnd) {
+    var skill = 0.5 + rnd() * 0.45 + (group === 'strong' ? 0.1 : group === 'low' ? -0.06 : 0);
+    skill = Math.max(0.2, Math.min(1, skill));
+    var found = Math.max(1, Math.min(4, Math.round(2 + skill * 2.2)));
+    var wrong = Math.max(0, Math.round((1 - skill) * 4 * rnd()));
+    var times = [];
+    var t = 3 + (1 - skill) * 6;
+    for (var i = 0; i < found; i++) { t += 3 + (1 - skill) * 8 * rnd(); times.push(Math.round(t * 10) / 10); }
+    var scanTotal = 6, scanCorrect = Math.max(1, Math.min(scanTotal, Math.round(scanTotal * (0.45 + skill * 0.55))));
+    var scanAvg = Math.round((2 + (1 - skill) * 5) * 10) / 10;
+    return root.SDNA.Focus.scoreFrom({
+      spot: { found: found, total: 4, wrong: wrong, times: times, elapsed: Math.min(45, times[times.length - 1] + 3), limit: 45 },
+      scan: { correct: scanCorrect, total: scanTotal, avg: scanAvg, rounds: 3 }
+    });
   }
 
   function seed() {
@@ -161,7 +204,7 @@
         attendance: Math.round(g === 'strong' ? 95 + rnd() * 5 : g === 'medium' ? 88 + rnd() * 8 : 78 + rnd() * 10),
         lateDays: Math.round(g === 'strong' ? rnd() * 3 : g === 'medium' ? 3 + rnd() * 6 : 8 + rnd() * 12),
         managerScore: Math.round(g === 'strong' ? 8 + rnd() * 2 : g === 'medium' ? 6 + rnd() * 2 : 3 + rnd() * 3),
-        group: g, assessment: null, followups: []
+        group: g, assessment: null, focus: null, followups: []
       };
       if (i % 8 !== 7) {
         e.assessment = {
@@ -169,12 +212,13 @@
           completedAt: '2026-0' + (1 + (i % 8)) + '-1' + (i % 9), xp: 0, badges: []
         };
       }
+      if (i % 3 !== 2) e.focus = simFocus(g, rnd);      // ~2/3 of the team played the mini-games
       return e;
     });
 
     var cNames = ['صالح مرعي', 'يوسف حداد', 'مروان زيدان', 'أنس قاسم', 'هيثم صبري', 'لؤي أبو صالح',
                   'ربيع ناصر', 'إياد شحادة', 'تامر بدير', 'أمير خوري', 'سيف الدين عمار', 'نادر حلبي'];
-    var stages = [7, 5, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1];
+    var stages = [7, 5, 3, 3, 3, 3, 3, 3, 2, 2, 1, 1];
     state.candidates = cNames.map(function (nm, i) {
       var g = i < 4 ? 'strong' : i < 8 ? 'medium' : 'low';
       var st = stages[i];
@@ -183,15 +227,12 @@
         phone: '05' + (2 + i % 8) + '-' + (1000000 + Math.floor(rnd() * 8999999)),
         email: 'cand' + (201 + i) + '@mail.com',
         createdAt: '2026-08-0' + (1 + (i % 9)),
-        stage: st, s1: null, s2: null,
+        stage: st, nc: null, focus: null,
         decision: st >= 7 ? 'hired' : st === 5 ? 'interview' : null,
         followups: []
       };
-      if (st >= 2) c.s1 = { answers: planAnswers(buildPlan('c1', rnd), g, rnd), completedAt: c.createdAt, xp: 0 };
-      if (st >= 3) {
-        var used = c.s1.answers.map(function (a) { return a.qid; });
-        c.s2 = { answers: planAnswers(buildPlan('c2', rnd, used), g, rnd), completedAt: c.createdAt, xp: 0 };
-      }
+      if (st >= 2) c.nc = { answers: simNc(g, rnd), completedAt: c.createdAt, xp: 25 * 50 + 5 * 500 };
+      if (st >= 3) c.focus = simFocus(g, rnd);
       if (st >= 7) c.followups = [{ day: 90, targetPct: 118 }];
       return c;
     });
