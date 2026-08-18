@@ -227,7 +227,7 @@
       if (!e.assessment) return;
       e.assessment.answers.forEach(function (a) {
         var q = Q.get(a.qid); if (!q) return;
-        acc[a.qid] = acc[a.qid] || { qid: a.qid, trait: q.trait, lvl: q.lvl, strong: [], medium: [], low: [] };
+        acc[a.qid] = acc[a.qid] || { qid: a.qid, trait: q.trait, zone: q.zone, strong: [], medium: [], low: [] };
         acc[a.qid][e.group].push(a.s);
       });
     });
@@ -237,7 +237,7 @@
       var l = r.low.length ? avg(r.low) : null;
       var sep = (s != null && l != null) ? s - l : null;
       return {
-        qid: qid, trait: r.trait, lvl: r.lvl,
+        qid: qid, trait: r.trait, zone: r.zone,
         strong: s == null ? null : round(s),
         medium: r.medium.length ? round(avg(r.medium)) : null,
         low: l == null ? null : round(l),
@@ -341,11 +341,31 @@
     return { dataGroup: dataGroup, mismatch: dataGroup !== e.group };
   }
 
+  /* ---------- candidate stage status (never a hard FAIL) ---------- */
+  function status(m, state) {
+    var th = state.settings.thresholds;
+    if (m.match >= th.high) return { key: 'continue', color: '#10b981', dot: '🟢' };
+    if (m.match >= (th.stage1 || th.mid)) return { key: 'review', color: '#f59e0b', dot: '🟡' };
+    return { key: 'low', color: '#ef4444', dot: '🔴' };
+  }
+
+  /* ---------- where the candidate differs most from the strong group ---------- */
+  function mainDifferences(d, employees, limit) {
+    var gs = groupStats(employees);
+    return TK.map(function (k) {
+      if (d.traits[k] == null || gs.strong.traits[k] == null) return null;
+      return { key: k, gap: gs.strong.traits[k] - d.traits[k], val: d.traits[k], strong: gs.strong.traits[k] };
+    }).filter(function (x) { return x && x.gap > 6; })
+      .sort(function (a, b) { return b.gap - a.gap; })
+      .slice(0, limit || 3);
+  }
+
   root.SDNA.Engine = {
     dna: dna, character: character, groupStats: groupStats, learnWeights: learnWeights,
     activeWeights: activeWeights, similarity: similarity, match: match, consistency: consistency,
     flags: flags, signals: signals, similarEmployees: similarEmployees, questionPower: questionPower,
     summary: summary, interviewQuestions: interviewQuestions, benchmarkCheck: benchmarkCheck,
-    predictions: predictions, candAnswers: candAnswers, mergeAnswers: mergeAnswers, TK: TK
+    predictions: predictions, candAnswers: candAnswers, mergeAnswers: mergeAnswers, TK: TK,
+    status: status, mainDifferences: mainDifferences
   };
 })(window);

@@ -3,7 +3,7 @@
    ============================================================ */
 (function (root) {
   'use strict';
-  var Q = root.SDNA.Q, Store = root.SDNA.Store, UI = root.SDNA.UI, Engine = root.SDNA.Engine;
+  var Q = root.SDNA.Q, Store = root.SDNA.Store, UI = root.SDNA.UI, Engine = root.SDNA.Engine, Art = root.SDNA.Art;
   var T = UI.T, esc = UI.esc, TK = Engine.TK;
   var app, tab = 'dash', view = null, compareSel = [];
 
@@ -253,7 +253,7 @@
         }).join('') + '</div>';
     } else {
       out += '<div class="card"><h3>DNA</h3><p class="muted">' + esc(T('no_assessment')) + '</p>' +
-        '<p class="muted sm">' + esc(UI.getLang() === 'he' ? 'העובד יכול להיכנס למשחק עם הקוד שלו מהמסך הראשי.' : 'يستطيع الموظف الدخول إلى المشتبة باستخدام كوده من الشاشة الرئيسية.') + '</p></div>';
+        '<p class="muted sm">' + esc(UI.getLang() === 'he' ? 'העובד יכול להיכנס למשחק עם הקוד שלו מהמסך הראשי.' : 'يستطيع الموظف الدخول إلى التحدي باستخدام كوده من الشاشة الرئيسية.') + '</p></div>';
     }
     out += '</div>';
     return out;
@@ -277,19 +277,25 @@
       var fl = dAll ? Engine.flags(Engine.candAnswers(c), dAll, cons) : [];
       return '<tr>' +
         '<td><b>' + esc(c.name) + '</b><small class="muted"> · ' + esc(c.phone) + '</small></td>' +
-        '<td><span class="stage">' + esc((UI.DICT.stage_names[UI.getLang()] || UI.DICT.stage_names.ar)[Math.min(7, c.stage)]) + '</span></td>' +
+        '<td><span class="stage-tag">' + esc((UI.DICT.stage_names[UI.getLang()] || UI.DICT.stage_names.ar)[Math.min(7, c.stage)]) + '</span></td>' +
         '<td>' + (m1 ? band(m1) : '—') + '</td>' +
         '<td>' + (mAll ? band(mAll) : '—') + '</td>' +
         '<td>' + (cons && cons.score != null ? '<span style="color:' + UI.tone(cons.score) + '">' + cons.score + '%</span>' : '—') + '</td>' +
         '<td>' + (fl.length ? '<span class="flag-n">🚩 ' + fl.length + '</span>' : '—') + '</td>' +
+        '<td>' + (m1 ? statusChip(Engine.status(m1, s)) : '—') + '</td>' +
         '<td>' + (c.decision ? '<span class="pill" style="--c:' + (c.decision === 'hired' ? '#10b981' : c.decision === 'reject' ? '#ef4444' : '#3b82f6') + '">' + esc(c.decision) + '</span>' : '—') + '</td>' +
         '<td><button class="btn btn-xs" data-open="' + c.id + '">' + esc(T('view')) + '</button></td></tr>';
     }).join('');
     return head(T('nav_cand'), T('open_anyway')) +
       '<div class="card"><table class="tbl"><thead><tr>' +
-      ['name', 'stage', 'initial_match', 'full_match', 'consistency', 'flags', 'decision', ''].map(function (k) {
+      ['name', 'stage', 'initial_match', 'full_match', 'consistency', 'flags', 'status', 'decision', ''].map(function (k) {
         return '<th>' + (k ? esc(T(k)) : '') + '</th>';
       }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  function statusChip(stt) {
+    var lbl = stt.key === 'continue' ? T('status_continue') : stt.key === 'review' ? T('status_review') : T('status_low');
+    return '<span class="pill" style="--c:' + stt.color + '">' + stt.dot + ' ' + esc(lbl) + '</span>';
   }
 
   function band(m) {
@@ -312,6 +318,10 @@
       return out + head(c.name, c.phone + ' · ' + c.email) + '<div class="card"><p class="muted">' + esc(T('no_assessment')) + '</p></div>';
     }
     var d = Engine.dna(ans), m = Engine.match(d, s), cons = Engine.consistency(ans);
+    var d1 = c.s1 ? Engine.dna(c.s1.answers) : null;
+    var m1 = d1 ? Engine.match(d1, s) : null;
+    var stt = Engine.status(m1 || m, s);
+    var diffs = Engine.mainDifferences(d, s.employees, 4);
     var fl = Engine.flags(ans, d, cons), sig = Engine.signals(d);
     var gs = Engine.groupStats(s.employees), w = Engine.activeWeights(s);
     var lang = UI.getLang();
@@ -330,8 +340,12 @@
         simChip(T('group_low'), m.simLow, '#ef4444') +
       '</div>' +
       '<div class="mh-sims"><span class="chip">' + esc(T('consistency')) + ': <b style="color:' + UI.tone(cons.score || 0) + '">' + (cons.score == null ? '—' : cons.score + '%') + '</b></span>' +
-      '<span class="chip">' + ch.emoji + ' ' + esc(ch.key) + '</span></div>' +
+      '<span class="chip">' + ch.emoji + ' ' + esc(ch.key) + '</span>' +
+      (m1 ? '<span class="chip">' + esc(T('initial_match')) + ': <b>' + m1.match + '%</b> ' + statusChip(stt) + '</span>' : '') + '</div>' +
       (m.band === 'low' ? '<div class="alert warn-box">⚠ ' + esc(T('low_alert')) + '</div>' : '') +
+      (!c.s2 ? '<div class="btn-row">' +
+         '<button class="btn ' + (stt.key === 'low' ? '' : 'btn-primary') + '" data-stage2="' + c.id + '">▶ ' +
+         esc(stt.key === 'low' ? T('continue_anyway') : T('play_stage2')) + '</button></div>' : '') +
       '</div></div>';
 
     out += '<div class="grid2">' +
@@ -351,6 +365,15 @@
           return '<div class="flag sev' + x.sev + '">🚩 ' + esc(lang === 'he' ? x.he : x.ar) + (x.val != null ? ' <b>' + x.val + '</b>' : '') + '</div>';
         }).join('') : '<p class="muted">—</p>') + '</div>' +
       '</div>';
+
+    if (diffs.length) {
+      out += '<div class="card"><h3>' + esc(T('main_diff')) + '</h3>' +
+        diffs.map(function (x) {
+          return '<div class="diff-row">' + Q.TRAITS[x.key].icon + ' <b>' + esc(lname(x.key)) + '</b>' +
+            '<span class="muted sm">' + x.val + ' ' + (UI.getLang() === 'he' ? 'מול' : 'مقابل') + ' ' + x.strong + '</span>' +
+            '<span class="diff-gap">-' + Math.round(x.gap) + '</span></div>';
+        }).join('') + '</div>';
+    }
 
     out += '<div class="card ai-card"><h3>🤖 ' + esc(T('ai_summary')) + '</h3>' +
       sum.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + '</div>';
@@ -392,6 +415,12 @@
         var dec = btn.dataset.dec;
         Store.updateCandidate(view.id, { decision: dec, stage: dec === 'hired' ? 7 : dec === 'interview' ? 5 : 6 });
         UI.toast('✔ ' + dec); body();
+      };
+    });
+    UI.$$('[data-stage2]', m).forEach(function (btn) {
+      btn.onclick = function () {
+        Store.updateCandidate(btn.dataset.stage2, { allowStage2: true });
+        root.SDNA.Game.resume(btn.dataset.stage2);
       };
     });
     var add = document.getElementById('fuAdd');
@@ -481,19 +510,35 @@
   /* ================= QUESTION BANK ================= */
   function questions() {
     var qp = {}; Engine.questionPower(st().employees).forEach(function (r) { qp[r.qid] = r; });
-    var byLvl = {};
-    Q.all.forEach(function (q) { (byLvl[q.lvl] = byLvl[q.lvl] || []).push(q); });
-    return head(T('nav_questions'), Q.all.length + ' ' + (UI.getLang() === 'he' ? 'שאלות במאגר · ' : 'سؤال في المخزون · ') + T('q_bank_note')) +
-      Object.keys(byLvl).map(function (lv) {
-        var l = Q.LEVELS.filter(function (x) { return x.n === Number(lv); })[0];
-        return '<div class="card"><h3 style="color:' + l.color + '">' + l.icon + ' LEVEL ' + lv + ' · ' + esc(l.code) + '</h3>' +
-          byLvl[lv].map(function (q) {
+    var byZone = {};
+    Q.all.forEach(function (q) { (byZone[q.zone] = byZone[q.zone] || []).push(q); });
+    var audTag = { emp: UI.getLang() === 'he' ? 'עובדים בלבד' : 'للموظفين فقط',
+                   cand: UI.getLang() === 'he' ? 'מועמדים בלבד' : 'للمرشحين فقط' };
+    return head(T('nav_questions'),
+      Q.all.length + ' ' + (UI.getLang() === 'he' ? 'שאלות במאגר · ' : 'سؤال في المخزون · ') + T('q_bank_note')) +
+      '<div class="card"><p class="muted sm">' +
+        esc(UI.getLang() === 'he'
+          ? '⚠ כלל מערכת: לעובד קיים לא מוצגות שאלות על לימודים, עבודה אחרת, מעבר עבודה או תוכניות עתידיות — הן מסומנות "למועמדים בלבד".'
+          : '⚠ قاعدة النظام: لا تُعرض على الموظف الحالي أي أسئلة عن الدراسة أو عمل آخر أو الانتقال أو الخطط المستقبلية — وهي مُعلَّمة "للمرشحين فقط".') +
+      '</p></div>' +
+      Q.ZONES.map(function (z) {
+        var list = byZone[z.key] || [];
+        if (!list.length) return '';
+        return '<div class="card"><div class="zone-head"><div class="zh-art">' + Art.zoneEmblem(z.key, z.color) + '</div>' +
+          '<h3 style="color:' + z.color + ';margin:0">ZONE ' + z.n + ' · ' + esc(z.code) + '</h3></div>' +
+          list.map(function (q) {
             var r = qp[q.id];
-            return '<div class="qrow"><div class="qrow-h"><b>' + q.id + '</b> <span class="tag">' + Q.TRAITS[q.trait].icon + ' ' + esc(lname(q.trait)) + '</span>' +
-              '<span class="tag">D' + q.diff + '</span>' + (q.mirror ? '<span class="tag">↔ ' + q.mirror + '</span>' : '') +
+            return '<div class="qrow"><div class="qrow-h"><b>' + q.id + '</b> ' +
+              '<span class="tag">' + Q.TRAITS[q.trait].icon + ' ' + esc(lname(q.trait)) + '</span>' +
+              '<span class="tag">D' + q.diff + '</span>' +
+              (q.aud !== 'all' ? '<span class="tag aud">' + esc(audTag[q.aud]) + '</span>' : '') +
+              (q.mirror ? '<span class="tag">↔ ' + q.mirror + '</span>' : '') +
+              (q.who ? '<span class="tag">🎭 ' + esc(q.who) + '</span>' : '') +
               (q.hidden ? '<span class="tag">adaptive</span>' : '') +
               (r && r.sep != null ? '<span class="tag ' + (r.verdict === 'strong' ? 'good' : r.verdict === 'weak' ? 'bad' : '') + '">Δ' + r.sep + '</span>' : '') +
-              '</div><div class="qrow-q">' + esc(q.q) + '</div>' +
+              '</div>' +
+              (q.line ? '<div class="qrow-q" style="color:#93c5fd">🗣 "' + esc(q.line) + '"</div>' : '') +
+              '<div class="qrow-q">' + esc(q.q) + '</div>' +
               '<ol class="qrow-a">' + q.a.map(function (o) {
                 return '<li><span class="sc" style="color:' + UI.tone(o.s) + '">' + o.s + '</span> ' + esc(o.t) +
                   (o.f ? ' <em class="fl">🚩' + esc(o.f) + '</em>' : '') + (o.fu ? ' <em class="fl">→' + o.fu + '</em>' : '') + '</li>';
@@ -547,11 +592,23 @@
       '<div class="card"><h3>' + esc(T('thresholds')) + '</h3>' +
         '<label class="fld"><span>🟢 ' + esc(T('band_high')) + ' ≥</span><input id="thHigh" type="number" value="' + s.settings.thresholds.high + '"></label>' +
         '<label class="fld"><span>🟡 ' + esc(T('band_mid')) + ' ≥</span><input id="thMid" type="number" value="' + s.settings.thresholds.mid + '"></label>' +
+        '<label class="fld"><span>🚦 ' + esc(T('stage1_th')) + '</span><select id="thStage1">' +
+          [55, 60, 65, 70, 75, 80].map(function (v) {
+            return '<option value="' + v + '"' + (s.settings.thresholds.stage1 === v ? ' selected' : '') + '>' + v + '%</option>';
+          }).join('') + '</select></label>' +
         '<p class="muted sm">' + esc(T('open_anyway')) + '</p>' +
         '<button class="btn btn-primary" id="saveTh">' + esc(T('save')) + '</button></div>' +
       '<div class="card"><h3>PIN</h3>' +
         '<label class="fld"><span>' + esc(T('pin')) + '</span><input id="pinIn" value="' + esc(s.settings.pin) + '"></label>' +
         '<button class="btn btn-primary" id="savePin">' + esc(T('save')) + '</button>' +
+        '<h3 style="margin-top:18px">' + esc(T('reg_title')) + '</h3>' +
+        '<label class="fld"><span>' + esc(T('phone')) + '</span><select id="reqPhone">' +
+          '<option value="0"' + (s.settings.requirePhone ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'לא חובה' : 'اختياري') + '</option>' +
+          '<option value="1"' + (s.settings.requirePhone ? ' selected' : '') + '>' + esc(UI.getLang() === 'he' ? 'חובה' : 'إلزامي') + '</option></select></label>' +
+        '<label class="fld"><span>' + esc(T('email')) + '</span><select id="reqMail">' +
+          '<option value="0"' + (s.settings.requireEmail ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'לא חובה' : 'اختياري') + '</option>' +
+          '<option value="1"' + (s.settings.requireEmail ? ' selected' : '') + '>' + esc(UI.getLang() === 'he' ? 'חובה' : 'إلزامي') + '</option></select></label>' +
+        '<p class="muted sm">' + esc(UI.getLang() === 'he' ? 'שם מלא הוא תמיד שדה חובה למועמד.' : 'الاسم الكامل إلزامي دائماً للمرشح.') + '</p>' +
         '<h3 style="margin-top:18px">DATA</h3>' +
         '<div class="btn-row"><button class="btn" id="expBtn">⬇ ' + esc(T('export_')) + '</button>' +
         '<button class="btn" id="impBtn">⬆ ' + esc(T('import_')) + '</button>' +
@@ -571,10 +628,15 @@
       var s = st();
       s.settings.thresholds.high = Number(document.getElementById('thHigh').value);
       s.settings.thresholds.mid = Number(document.getElementById('thMid').value);
+      s.settings.thresholds.stage1 = Number(document.getElementById('thStage1').value);
       Store.save(); UI.toast('✔'); body();
     };
     document.getElementById('savePin').onclick = function () {
-      st().settings.pin = document.getElementById('pinIn').value || '1234'; Store.save(); UI.toast('✔');
+      var ss = st().settings;
+      ss.pin = document.getElementById('pinIn').value || '1234';
+      ss.requirePhone = document.getElementById('reqPhone').value === '1';
+      ss.requireEmail = document.getElementById('reqMail').value === '1';
+      Store.save(); UI.toast('✔');
     };
     document.getElementById('expBtn').onclick = function () {
       var blob = new Blob([JSON.stringify(st(), null, 2)], { type: 'application/json' });

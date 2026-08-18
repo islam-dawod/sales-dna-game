@@ -1,20 +1,21 @@
 /* ============================================================
-   SALES DNA — APP SHELL / ROUTER
+   SALES DNA — APP SHELL / ROUTER  (V2)
    ============================================================ */
 (function (root) {
   'use strict';
-  var Q = root.SDNA.Q, Store = root.SDNA.Store, UI = root.SDNA.UI,
-      Engine = root.SDNA.Engine, Game = root.SDNA.Game, Manager = root.SDNA.Manager;
+  var Store = root.SDNA.Store, UI = root.SDNA.UI, Art = root.SDNA.Art,
+      Game = root.SDNA.Game, Manager = root.SDNA.Manager;
   var T = UI.T, esc = UI.esc;
   var app, route = 'splash';
 
   function go(r, data) {
     route = r;
     document.body.classList.toggle('mgr-mode', r === 'manager');
+    if (r !== 'manager') document.body.classList.remove('in-game');
     ({
       splash: splash, home: home,
       empLogin: empLogin, empReady: empReady,
-      candReg: candReg,
+      candName: candName, candHello: candHello,
       mgrLogin: mgrLogin, manager: function () { Manager.open(); }
     }[r] || home)(data);
     window.scrollTo(0, 0);
@@ -23,15 +24,18 @@
   /* ---------------- splash ---------------- */
   function splash() {
     app.innerHTML = '<div class="screen splash">' +
-      '<div class="logo-xl"><span class="l1">SALES</span><span class="l2">DNA</span></div>' +
-      '<div class="tagline">' + esc(T('app_sub')) + '</div>' +
-      '<div class="orbit"><i>🎯</i><i>🔥</i><i>🧠</i><i>⏱</i><i>🏆</i></div>' +
-      '<button class="btn btn-primary btn-xl pulse" id="startBtn">START</button>' +
-      '<div class="splash-note muted">GAME · ASSESSMENT · SALES ANALYTICS</div>' +
-      '</div>';
+      '<div class="splash-hero">' + Art.hero({ pose: 'point', expr: 'happy' }) + '</div>' +
+      '<div class="splash-txt">' +
+        '<div class="logo-xl"><span class="l1">SALES</span><span class="l2">DNA</span></div>' +
+        '<div class="logo-tag">THE SALES CHALLENGE</div>' +
+        '<div class="tagline">' + esc(T('game_sub')) + '</div>' +
+        '<button class="btn btn-primary btn-xl pulse" id="startBtn">' + esc(T('start_challenge')) + '</button>' +
+        '<div class="splash-note">GAME · ASSESSMENT · SALES ANALYTICS</div>' +
+      '</div></div>';
     document.getElementById('startBtn').onclick = function () {
+      Game.Sound.tap();
       document.body.classList.add('flash');
-      setTimeout(function () { document.body.classList.remove('flash'); go('home'); }, 320);
+      setTimeout(function () { document.body.classList.remove('flash'); go('home'); }, 300);
     };
   }
 
@@ -40,83 +44,107 @@
     app.innerHTML = '<div class="screen roles">' +
       '<h2 class="rl-title">' + esc(T('who_are_you')) + '</h2>' +
       '<div class="role-grid">' +
-        roleCard('emp', '🧑‍💼', T('role_emp'), T('role_emp_s'), '#3b82f6') +
-        roleCard('cand', '🚀', T('role_cand'), T('role_cand_s'), '#8b5cf6') +
-        roleCard('mgr', '🧠', T('role_mgr'), T('role_mgr_s'), '#10b981') +
+        roleCard('emp', Art.hero({ pose: 'idle', expr: 'idle' }), T('role_emp'), T('role_emp_s'), '#3b82f6') +
+        roleCard('cand', Art.hero({ pose: 'cheer', expr: 'happy' }), T('role_cand'), T('role_cand_s'), '#8b5cf6') +
+        roleCard('mgr', Art.coach(), T('role_mgr'), T('role_mgr_s'), '#10b981') +
       '</div></div>';
     UI.$$('[data-role]', app).forEach(function (c) {
       c.onclick = function () {
+        Game.Sound.tap();
         var r = c.dataset.role;
-        go(r === 'emp' ? 'empLogin' : r === 'cand' ? 'candReg' : 'mgrLogin');
+        go(r === 'emp' ? 'empLogin' : r === 'cand' ? 'candName' : 'mgrLogin');
       };
     });
   }
-  function roleCard(k, icon, title, sub, color) {
+  function roleCard(k, art, title, sub, color) {
     return '<button class="role-card" data-role="' + k + '" style="--c:' + color + '">' +
-      '<div class="rc-icon">' + icon + '</div><b>' + esc(title) + '</b><small>' + esc(sub) + '</small>' +
+      '<div class="rc-art">' + art + '</div>' +
+      '<div class="rc-txt"><b>' + esc(title) + '</b><small>' + esc(sub) + '</small></div>' +
       '<span class="rc-go">›</span></button>';
   }
 
-  /* ---------------- employee login ---------------- */
+  /* ---------------- employee ---------------- */
   function empLogin() {
     var codes = Store.get().employees.slice(0, 4).map(function (e) { return e.code; }).join(' · ');
-    app.innerHTML = '<div class="screen form-screen">' +
-      backBtn() + '<div class="fs-icon">🧑‍💼</div><h2>' + esc(T('emp_login')) + '</h2>' +
+    app.innerHTML = '<div class="screen form-screen">' + backBtn() +
+      '<div class="fs-art small">' + Art.hero({ pose: 'idle', expr: 'idle' }) + '</div>' +
+      '<h2>' + esc(T('emp_login')) + '</h2>' +
       '<div class="form">' +
       '<label class="fld"><span>' + esc(T('emp_code')) + '</span><input id="code" placeholder="E101" autocomplete="off"></label>' +
       '<button class="btn btn-primary btn-lg" id="doLogin">' + esc(T('login')) + '</button>' +
       '<p class="muted sm">DEMO: ' + esc(codes) + '</p></div></div>';
     bindBack();
-    document.getElementById('doLogin').onclick = function () {
+    var run = function () {
       var e = Store.findEmployeeByCode(document.getElementById('code').value);
       if (!e) return UI.toast(T('not_found'), 'bad');
       go('empReady', e);
     };
+    document.getElementById('doLogin').onclick = run;
+    document.getElementById('code').onkeydown = function (ev) { if (ev.key === 'Enter') run(); };
   }
 
   function empReady(e) {
     var yrs = e.startDate ? (2026 - Number(String(e.startDate).slice(0, 4))) : '—';
-    app.innerHTML = '<div class="screen form-screen">' +
-      backBtn() + '<div class="fs-icon">👋</div>' +
-      '<h2>' + esc(T('welcome')) + ' ' + esc(e.name) + '</h2>' +
+    app.innerHTML = '<div class="screen form-screen hello">' + backBtn() +
+      '<div class="fs-art">' + Art.hero({ pose: 'cheer', expr: 'happy' }) + '</div>' +
+      '<h1 class="hello-name">' + esc(T('hello_name').replace('{n}', e.name.split(' ')[0])) + '</h1>' +
       '<div class="mini-facts">' +
         '<div><small>' + esc(T('dept')) + '</small><b>' + esc(e.dept) + '</b></div>' +
         '<div><small>' + esc(T('seniority')) + '</small><b>' + yrs + 'y</b></div>' +
         '<div><small>' + esc(T('target_pct')) + '</small><b>' + e.targetPct + '%</b></div>' +
       '</div>' +
-      '<h3>' + esc(T('ready')) + '</h3><p class="muted">' + esc(T('ready_sub')) + '</p>' +
-      '<button class="btn btn-primary btn-xl pulse" id="startGame">START</button></div>';
+      '<h3>' + esc(T('ready_challenge')) + '</h3>' +
+      '<p class="muted">' + esc(T('emp_note')) + '</p>' +
+      '<button class="btn btn-primary btn-xl pulse" id="startGame">' + esc(T('start_challenge')) + '</button></div>';
     bindBack();
     document.getElementById('startGame').onclick = function () {
-      Game.start('employee', { type: 'employee', id: e.id });
+      Game.start('employee', { type: 'employee', id: e.id, name: e.name });
     };
   }
 
-  /* ---------------- candidate registration ---------------- */
-  function candReg() {
-    app.innerHTML = '<div class="screen form-screen">' +
-      backBtn() + '<div class="fs-icon">🚀</div><h2>' + esc(T('reg_title')) + '</h2>' +
+  /* ---------------- candidate: name first (required) ---------------- */
+  function candName() {
+    var s = Store.get().settings;
+    app.innerHTML = '<div class="screen form-screen">' + backBtn() +
+      '<div class="fs-art small">' + Art.hero({ pose: 'point', expr: 'idle' }) + '</div>' +
+      '<h2>' + esc(T('before_start')) + '</h2>' +
       '<div class="form">' +
-      '<label class="fld"><span>' + esc(T('full_name')) + '</span><input id="cn"></label>' +
-      '<label class="fld"><span>' + esc(T('phone')) + '</span><input id="cp" inputmode="tel"></label>' +
-      '<label class="fld"><span>' + esc(T('email')) + '</span><input id="ce" inputmode="email"></label>' +
-      '<button class="btn btn-primary btn-lg" id="doReg">' + esc(T('ready')) + ' →</button>' +
-      '<p class="muted sm">' + esc(T('ready_sub')) + '</p></div></div>';
+      '<label class="fld req"><span>' + esc(T('full_name')) + ' *</span><input id="cn" autocomplete="name"></label>' +
+      '<label class="fld"><span>' + esc(T('phone')) + (s.requirePhone ? ' *' : '') + '</span><input id="cp" inputmode="tel"></label>' +
+      '<label class="fld"><span>' + esc(T('email')) + (s.requireEmail ? ' *' : '') + '</span><input id="ce" inputmode="email"></label>' +
+      '<button class="btn btn-primary btn-lg" id="doReg">' + esc(T('next')) + ' →</button></div></div>';
     bindBack();
-    document.getElementById('doReg').onclick = function () {
+    var run = function () {
       var n = document.getElementById('cn').value.trim(),
           p = document.getElementById('cp').value.trim(),
           m = document.getElementById('ce').value.trim();
-      if (!n || !p) return UI.toast(T('fill_all'), 'bad');
+      if (!n) { UI.$('#cn').classList.add('err'); return UI.toast(T('name_required'), 'bad'); }
+      if ((s.requirePhone && !p) || (s.requireEmail && !m)) return UI.toast(T('fill_all'), 'bad');
       var c = Store.addCandidate({ name: n, phone: p, email: m, stage: 1 });
-      Game.start('c1', { type: 'candidate', id: c.id });
+      go('candHello', c);
+    };
+    document.getElementById('doReg').onclick = run;
+    document.getElementById('cn').onkeydown = function (ev) { if (ev.key === 'Enter') run(); };
+  }
+
+  function candHello(c) {
+    var first = c.name.split(' ')[0];
+    app.innerHTML = '<div class="screen form-screen hello">' +
+      '<div class="fs-art">' + Art.hero({ pose: 'cheer', expr: 'happy' }) + '</div>' +
+      '<h1 class="hello-name pop">' + esc(T('hello_name').replace('{n}', first)) + '</h1>' +
+      '<h3>' + esc(T('ready_challenge')) + '</h3>' +
+      '<p class="muted">' + esc(T('quick_note')) + '</p>' +
+      '<button class="btn btn-primary btn-xl pulse" id="startGame">' + esc(T('start_challenge')) + '</button></div>';
+    document.getElementById('startGame').onclick = function () {
+      Game.start('c1', { type: 'candidate', id: c.id, name: c.name });
     };
   }
 
-  /* ---------------- manager login ---------------- */
+  /* ---------------- manager ---------------- */
   function mgrLogin() {
-    app.innerHTML = '<div class="screen form-screen">' +
-      backBtn() + '<div class="fs-icon">🧠</div><h2>' + esc(T('mgr_login')) + '</h2>' +
+    app.innerHTML = '<div class="screen form-screen">' + backBtn() +
+      '<div class="fs-art small">' + Art.coach() + '</div>' +
+      '<h2>' + esc(T('mgr_login')) + '</h2>' +
       '<div class="form">' +
       '<label class="fld"><span>' + esc(T('pin')) + '</span><input id="pin" type="password" inputmode="numeric" autocomplete="off"></label>' +
       '<button class="btn btn-primary btn-lg" id="doPin">' + esc(T('login')) + '</button>' +
@@ -137,14 +165,23 @@
   function boot() {
     app = document.getElementById('app');
     var s = Store.load();
+    Art.injectDefs();
+    document.getElementById('world').innerHTML = Art.city();
     UI.setLang(s.settings.lang || 'ar');
-    document.getElementById('langBtn').onclick = function () {
+    var lb = document.getElementById('langBtn');
+    lb.textContent = UI.getLang() === 'ar' ? 'עברית' : 'عربي';
+    lb.onclick = function () {
       UI.setLang(UI.getLang() === 'ar' ? 'he' : 'ar');
-      document.getElementById('langBtn').textContent = UI.getLang() === 'ar' ? 'עברית' : 'عربي';
+      lb.textContent = UI.getLang() === 'ar' ? 'עברית' : 'عربي';
       go(route === 'manager' ? 'manager' : route === 'splash' ? 'splash' : 'home');
     };
-    document.getElementById('langBtn').textContent = UI.getLang() === 'ar' ? 'עברית' : 'عربي';
     document.getElementById('homeBtn').onclick = function () { go('splash'); };
+    /* subtle parallax on the city */
+    document.addEventListener('mousemove', function (ev) {
+      var x = (ev.clientX / window.innerWidth - 0.5);
+      var w = document.getElementById('world');
+      if (w) w.style.transform = 'translate3d(' + (-x * 22).toFixed(1) + 'px,0,0) scale(1.06)';
+    });
     go('splash');
   }
 
