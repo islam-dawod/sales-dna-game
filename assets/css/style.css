@@ -212,14 +212,14 @@ h2{font-size:clamp(20px,5vw,29px)}
 /* ============================================================
    QUESTION SCENE
    ============================================================ */
-.scene{justify-content:flex-start;width:100%;padding-top:52px!important;transition:opacity .28s,transform .28s}
+.scene{justify-content:center;width:100%;padding:52px 0 18px!important;transition:opacity .28s,transform .28s}
 .scene.scene-out{opacity:0;transform:translateY(-16px) scale(.99)}
 .stars{display:flex;gap:5px;justify-content:center;margin:2px 0 4px}
 .stars i{width:16px;height:5px;border-radius:99px;background:rgba(255,255,255,.16)}
 .stars i.on{background:linear-gradient(90deg,var(--cyan),var(--purple))}
 .stars i.now{background:var(--c);box-shadow:0 0 12px var(--c)}
 
-.stage{position:relative;width:100%;max-width:900px;height:clamp(150px,26vh,260px);display:flex;
+.stage{position:relative;width:100%;max-width:900px;height:clamp(160px,30vh,290px);display:flex;
   align-items:flex-end;justify-content:center;gap:4%}
 .actor{height:100%;position:relative;animation:actorIn .5s cubic-bezier(.2,1,.3,1) both}
 @keyframes actorIn{from{opacity:0;transform:translateY(26px)}}
@@ -232,15 +232,15 @@ h2{font-size:clamp(20px,5vw,29px)}
   font-size:10.5px;background:rgba(5,8,15,.9);border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--muted)}
 .bubble{position:absolute;top:0;background:#fff;color:#0b1222;border-radius:16px;padding:10px 14px;font-size:14px;
   font-weight:700;max-width:min(70%,340px);box-shadow:0 14px 34px rgba(0,0,0,.45);line-height:1.5}
-.cust-bubble{inset-inline-start:2%}
-.cust-bubble:after{content:'';position:absolute;bottom:-9px;inset-inline-start:26px;border:10px solid transparent;
+.cust-bubble{inset-inline-end:1%}
+.cust-bubble:after{content:'';position:absolute;bottom:-9px;inset-inline-end:30px;border:10px solid transparent;
   border-top-color:#fff;border-bottom:0}
-.hero-bubble{position:absolute;top:6px;inset-inline-end:2%;background:linear-gradient(135deg,#4f8cff,#8b5cf6);
+.hero-bubble{position:absolute;top:6px;inset-inline-start:2%;background:linear-gradient(135deg,#4f8cff,#8b5cf6);
   color:#fff;border-radius:99px;padding:8px 16px;font-size:13px;font-weight:800;box-shadow:0 10px 26px rgba(79,140,255,.5);z-index:3}
 
 .panel{width:100%;max-width:900px;margin-top:8px;background:linear-gradient(180deg,rgba(13,20,35,.94),rgba(7,11,20,.97));
   border:1px solid var(--line);border-top-color:rgba(255,255,255,.18);border-radius:26px 26px 0 0;
-  padding:16px 16px 18px;backdrop-filter:blur(10px);box-shadow:0 -14px 44px rgba(0,0,0,.5);flex:1}
+  padding:16px 16px 20px;backdrop-filter:blur(10px);box-shadow:0 -14px 44px rgba(0,0,0,.5)}
 .q-text{font-size:clamp(17px,3.8vw,25px);line-height:1.55;margin:2px 0 16px;text-align:center}
 .opts{display:grid;grid-template-columns:1fr;gap:10px;width:100%}
 @media(min-width:760px){.opts{grid-template-columns:1fr 1fr}}
@@ -443,9 +443,9 @@ body.mgr-mode .world{filter:blur(3px) saturate(.6);opacity:.5}
 
 /* ---------- mobile tuning: one-hand friendly ---------- */
 @media(max-width:759px){
-  .scene{padding-top:48px!important}
-  .stage{height:clamp(130px,22vh,180px)}
-  .panel{border-radius:24px 24px 0 0;padding:14px 12px 20px;margin-top:6px}
+  .scene{justify-content:flex-start;padding:48px 0 0!important}
+  .stage{height:clamp(120px,20vh,175px)}
+  .panel{border-radius:24px 24px 0 0;padding:14px 12px calc(18px + env(safe-area-inset-bottom));margin-top:auto}
   .bubble{font-size:13px;padding:8px 12px;max-width:64%}
   .opt{padding:13px 12px;font-size:15px}
   .opt-ic{width:34px;height:34px;font-size:17px}
