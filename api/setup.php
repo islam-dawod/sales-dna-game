@@ -189,6 +189,14 @@ if ($action === 'install') {
     'allow_install' => true,
     'session_hours' => 12
   );
+  /* Plesk presents the host as "localhost:3306", and that whole string is what
+     gets pasted into the host box. Split it instead of failing to connect. */
+  if (strpos($c['db_host'], ':') !== false) {
+    $bits = explode(':', $c['db_host'], 2);
+    $c['db_host'] = trim($bits[0]);
+    $maybePort = trim($bits[1]);
+    if (ctype_digit($maybePort)) $c['db_port'] = (int) $maybePort;
+  }
   if ($c['db_port'] < 1 || $c['db_port'] > 65535) $c['db_port'] = 3306;
   if ($c['db_host'] === '') $c['db_host'] = 'localhost';
 
@@ -202,8 +210,19 @@ if ($action === 'install') {
   if (!try_connect($c, $err)) {
     echo '<div class="box err"><span class="bad">✗ فشل الاتصال بقاعدة البيانات.</span><br>'
        . 'رسالة MySQL:<pre>' . h($err) . '</pre>'
-       . '<span class="hint">الأسباب الشائعة: كلمة المرور غير مطابقة · اسم القاعدة أو المستخدم يحمل بادئة '
-       . 'في Plesk (مثل <code>driftx_dna</code>) فاكتبه كما يظهر تماماً · المستخدم غير مربوط بالقاعدة.</span></div>'
+       . 'حاولتُ الاتصال بهذه القيم بالضبط — قارنها بما يعرضه Plesk:'
+       . '<pre>'
+       . 'host     = ' . h($c['db_host']) . "\n"
+       . 'port     = ' . (int) $c['db_port'] . "\n"
+       . 'database = ' . h($c['db_name']) . "\n"
+       . 'user     = ' . h($c['db_user']) . "\n"
+       . 'password = ' . (strlen($c['db_pass']) ? str_repeat('•', min(12, strlen($c['db_pass'])))
+                                                  . ' (' . strlen($c['db_pass']) . ' حرفاً)' : '(فارغة)')
+       . '</pre>'
+       . '<span class="hint">اسم القاعدة حسّاس لحالة الأحرف على لينكس: <code>DNA</code> ليست <code>dna</code>. '
+       . 'وانسخ اسم القاعدة والمستخدم من Plesk كما يظهران تماماً — قد يحملان بادئة. '
+       . 'أما المضيف فاكتب <code>localhost</code> وحده؛ إن نسخت <code>localhost:3306</code> '
+       . 'فسأفصل المنفذ تلقائياً.</span></div>'
        . '<div class="box"><a href="setup.php">← تعديل البيانات والمحاولة مرة أخرى</a></div>';
     page_close();
   }
