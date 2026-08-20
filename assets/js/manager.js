@@ -21,7 +21,7 @@
     { k: 'settings', i: '⚙️', t: 'nav_settings' }
   ];
 
-  function LL(ar, he) { return UI.getLang() === 'he' ? he : ar; }
+  function LL(ar, en) { return UI.getLang() === 'en' ? en : ar; }
   var API = root.SDNA.API;
   function srv() { return Store.isServerMode() && API; }
 
@@ -41,7 +41,7 @@
   function st() { return Store.get(); }
   function empDNA(e) { return e.assessment ? Engine.dna(e.assessment.answers) : null; }
   function candDNA(c) { var a = Engine.candAnswers(c); return a.length ? Engine.dna(a) : null; }
-  function lname(t) { return UI.getLang() === 'he' ? Q.TRAITS[t].he : Q.TRAITS[t].ar; }
+  function lname(t) { return UI.getLang() === 'en' ? Q.TRAITS[t].en : Q.TRAITS[t].ar; }
   function gname(g) {
     return T(g === 'strong' ? 'group_strong' : g === 'medium' ? 'group_medium'
            : g === 'low' ? 'group_low' : 'group_unclassified');
@@ -109,17 +109,17 @@
     var pred = Engine.predictions(s);
 
     var funnel = [
-      { l: UI.getLang() === 'he' ? 'מועמדים' : 'مرشحون', v: cands.length },
-      { l: UI.getLang() === 'he' ? 'סיימו 25 שאלות' : 'أكملوا 25 سؤالاً', v: cands.filter(function (c) { return c.nc; }).length },
-      { l: UI.getLang() === 'he' ? 'סיימו Focus' : 'أكملوا تحدي التركيز', v: cands.filter(function (c) { return c.focus; }).length },
-      { l: UI.getLang() === 'he' ? 'התאמה בינונית+' : 'تطابق متوسط فأعلى', v: cands.filter(function (c) { var r = c.nc ? Engine.candidateReport(c, s) : null; return r && r.band !== 'low'; }).length },
-      { l: UI.getLang() === 'he' ? 'ראיון' : 'مقابلة', v: cands.filter(function (c) { return c.stage >= 5; }).length },
-      { l: UI.getLang() === 'he' ? 'התקבלו' : 'تم توظيفهم', v: cands.filter(function (c) { return c.decision === 'hired'; }).length }
+      { l: UI.getLang() === 'en' ? 'Candidates' : 'مرشحون', v: cands.length },
+      { l: UI.getLang() === 'en' ? 'Completed the 25 questions' : 'أكملوا 25 سؤالاً', v: cands.filter(function (c) { return c.nc; }).length },
+      { l: UI.getLang() === 'en' ? 'Completed the focus challenge' : 'أكملوا تحدي التركيز', v: cands.filter(function (c) { return c.focus; }).length },
+      { l: UI.getLang() === 'en' ? 'Medium match or better' : 'تطابق متوسط فأعلى', v: cands.filter(function (c) { var r = c.nc ? Engine.candidateReport(c, s) : null; return r && r.band !== 'low'; }).length },
+      { l: UI.getLang() === 'en' ? 'Interview' : 'مقابلة', v: cands.filter(function (c) { return c.stage >= 5; }).length },
+      { l: UI.getLang() === 'en' ? 'Hired' : 'تم توظيفهم', v: cands.filter(function (c) { return c.decision === 'hired'; }).length }
     ];
     var maxF = funnel[0].v || 1;
 
-    return head('SALES INTELLIGENCE', UI.getLang() === 'he' ? 'תמונת מצב של הצוות והמועמדים' : 'صورة عامة عن الفريق والمرشحين',
-      srv() ? '<button class="btn" id="refreshBtn">⟳ ' + esc(LL('تحديث من السيرفر', 'רענון מהשרת')) + '</button>' : '') +
+    return head('SALES INTELLIGENCE', UI.getLang() === 'en' ? 'An overview of the team and the candidates' : 'صورة عامة عن الفريق والمرشحين',
+      srv() ? '<button class="btn" id="refreshBtn">⟳ ' + esc(LL('تحديث من السيرفر', 'Refresh from the server')) + '</button>' : '') +
       '<div class="kpis">' +
         kpi('👥', tested + '/' + s.employees.length, T('kpi_tested'), '#3b82f6') +
         kpi('🔥', g.strong, T('kpi_strong'), '#10b981') +
@@ -153,7 +153,7 @@
             pred.rows.map(function (r) {
               return '<tr><td>' + esc(r.name) + '</td><td>' + r.match + '%</td><td>' + r.day + 'd</td><td>' + r.actual + '%</td><td>' + (r.ok ? '✅' : '❌') + '</td></tr>';
             }).join('') + '</tbody></table>'
-            : '<p class="muted">' + esc(UI.getLang() === 'he' ? 'אין עדיין נתוני מעקב לאחר קליטה. הוסף מעקב בכרטיס מועמד שהתקבל.' : 'لا توجد بيانات متابعة بعد التوظيف. أضف متابعة من بطاقة مرشّح تم توظيفه.') + '</p>') +
+            : '<p class="muted">' + esc(UI.getLang() === 'en' ? 'No post-hire follow-up data yet. Add a follow-up from the card of a hired candidate.' : 'لا توجد بيانات متابعة بعد التوظيف. أضف متابعة من بطاقة مرشّح تم توظيفه.') + '</p>') +
         '</div>' +
       '</div>';
   }
@@ -206,12 +206,12 @@
     }).join('');
 
     return head(T('nav_emp'),
-      s.employees.length + ' ' + (UI.getLang() === 'he' ? 'עובדים' : 'موظفاً') + ' · ' +
-      (UI.getLang() === 'he' ? 'הזן נתוני מכירות אמיתיים ואז סווג' : 'أدخل أرقام المبيعات الحقيقية ثم صنّف'),
+      s.employees.length + ' ' + (UI.getLang() === 'en' ? 'employees' : 'موظفاً') + ' · ' +
+      (UI.getLang() === 'en' ? 'Enter the real sales numbers, then classify' : 'أدخل أرقام المبيعات الحقيقية ثم صنّف'),
       '<button class="btn btn-primary" id="addEmp">+ ' + esc(T('add_emp')) + '</button>') +
       '<div class="card"><div class="chips pick">' +
         '<button class="chip pickable ' + (empBranch ? '' : 'on') + '" data-br="">' +
-          (UI.getLang() === 'he' ? 'הכל' : 'الكل') + ' <small>' + s.employees.length + '</small></button>' +
+          (UI.getLang() === 'en' ? 'All' : 'الكل') + ' <small>' + s.employees.length + '</small></button>' +
         branches.map(function (b) {
           var n = s.employees.filter(function (e) { return e.branch === b; }).length;
           return '<button class="chip pickable ' + (empBranch === b ? 'on' : '') + '" data-br="' + esc(b) + '">' +
@@ -288,9 +288,9 @@
     var h = '<div class="modal-bg"><div class="modal"><h3>' + esc(isNew ? T('add_emp') : e.name) + '</h3>' +
       '<div class="form">' +
       f('name', T('full_name'), e.name) + f('branch', T('branch_col'), e.branch || '') +
-      f('dept', T('dept'), e.dept) + f('startDate', UI.getLang() === 'he' ? 'תאריך תחילה' : 'تاريخ البدء', e.startDate, 'date') +
+      f('dept', T('dept'), e.dept) + f('startDate', UI.getLang() === 'en' ? 'Start date' : 'تاريخ البدء', e.startDate, 'date') +
       f('targetPct', T('target_pct'), e.targetPct, 'number') +
-      f('monthsAbove', UI.getLang() === 'he' ? 'חודשים מעל היעד' : 'أشهر فوق الهدف', e.monthsAbove, 'number') +
+      f('monthsAbove', UI.getLang() === 'en' ? 'Months above target' : 'أشهر فوق الهدف', e.monthsAbove, 'number') +
       f('attendance', T('attendance'), e.attendance, 'number') +
       f('lateDays', T('late'), e.lateDays, 'number') +
       f('managerScore', T('mgr_score'), e.managerScore, 'number') +
@@ -346,7 +346,7 @@
     out += '<div class="grid2">';
     out += '<div class="card"><h3>PERFORMANCE</h3>' +
       '<div class="kpis sm">' + kpi('🎯', e.targetPct == null ? '—' : e.targetPct + '%', T('target_pct'), '#3b82f6') +
-      kpi('📅', e.monthsAbove == null ? '—' : e.monthsAbove + '/' + e.monthsTotal, UI.getLang() === 'he' ? 'חודשים מעל היעד' : 'أشهر فوق الهدف', '#10b981') +
+      kpi('📅', e.monthsAbove == null ? '—' : e.monthsAbove + '/' + e.monthsTotal, UI.getLang() === 'en' ? 'Months above target' : 'أشهر فوق الهدف', '#10b981') +
       kpi('🕘', e.attendance == null ? '—' : e.attendance + '%', T('attendance'), '#22d3ee') +
       kpi('⏰', e.lateDays == null ? '—' : e.lateDays, T('late'), '#f59e0b') +
       kpi('⭐', e.managerScore == null ? '—' : e.managerScore + '/10', T('mgr_score'), '#8b5cf6') + '</div>' +
@@ -371,26 +371,26 @@
         }).join('') + '</div>';
     } else {
       out += '<div class="card"><h3>DNA</h3><p class="muted">' + esc(T('no_assessment')) + '</p>' +
-        '<p class="muted sm">' + esc(UI.getLang() === 'he' ? 'העובד יכול להיכנס למשחק עם הקוד שלו מהמסך הראשי.' : 'يستطيع الموظف الدخول إلى التحدي باستخدام كوده من الشاشة الرئيسية.') + '</p></div>';
+        '<p class="muted sm">' + esc(UI.getLang() === 'en' ? 'The employee can enter the challenge with their own code from the main screen.' : 'يستطيع الموظف الدخول إلى التحدي باستخدام كوده من الشاشة الرئيسية.') + '</p></div>';
     }
     out += '</div>';
     out += '<div class="card"><h3>🧠 ' + esc(T('focus_title')) + '</h3>' +
       (e.focus ? '<div class="focus-head">' + UI.ring(e.focus.focus, 'FOCUS', 110) +
         '<div class="focus-subs">' + ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
           var SUB = root.SDNA.Focus.SUB;
-          return '<div class="fsub"><small>' + esc(UI.getLang() === 'he' ? SUB[k].he : SUB[k].ar) + '</small>' +
+          return '<div class="fsub"><small>' + esc(UI.getLang() === 'en' ? SUB[k].en : SUB[k].ar) + '</small>' +
             '<b style="color:' + UI.tone(e.focus.sub[k]) + '">' + e.focus.sub[k] + '</b></div>';
         }).join('') + '</div></div>'
         : '<p class="muted">' + esc(T('focus_nodata')) + '</p>') +
       '<button class="btn" data-focus-emp="' + e.id + '">▶ ' + esc(T('play_focus')) + '</button></div>';
     out += '<div class="card"><h3>⚡ ' + esc(T('mode_quick')) + '</h3>' +
       (e.nc22 ? '<p class="ok-line">✅ ' + esc(LL('أجاب على نفس مقياس المرشحين — إجاباته تُستخدم في تحليل جودة الأسئلة.',
-                  'ענה על אותו מדד כמו המועמדים — התשובות מזינות את ניתוח איכות השאלות.')) + '</p>' +
+                  'Answered the same scale as the candidates — those answers feed the question-quality analysis.')) + '</p>' +
                 '<p class="muted sm">' + e.nc22.answers.length + ' ' + esc(T('q_of')) + ' · ' + esc(e.nc22.completedAt || '') + '</p>'
               : '<p class="muted">' + esc(LL('لم يجب بعد على المقياس المشترك (22 موقفاً) — بدونه لا يدخل في مقارنة الأسئلة.',
-                  'עוד לא ענה על המדד המשווה (22 תרחישים) — בלעדיו הוא לא נכנס להשוואת השאלות.')) + '</p>') +
+                  'Has not answered the shared scale yet (22 scenarios) — without it they are not part of the question comparison.')) + '</p>') +
       '<p class="muted sm">' + esc(LL('يدخل الموظف من الشاشة الرئيسية بكوده ويختار «التحدي المقارن».',
-        'העובד נכנס מהמסך הראשי עם הקוד שלו ובוחר «האתגר המשווה».')) + '</p></div>';
+        'The employee signs in from the main screen with their code and picks the comparison challenge.')) + '</p></div>';
     return out;
   }
 
@@ -406,13 +406,13 @@
     }).join('') + '<div class="hist-line" style="bottom:' + (100 / 160 * 100) + '%"></div></div>' : '';
     var rank = { strong: 3, medium: 2, low: 1 };
     return '<div class="card"><h3>📈 ' + esc(T('perf_history')) + ' <small class="muted">(' + ps.n + ' ' +
-        esc(LL('شهراً', 'חודשים')) + ')</small></h3>' + bars +
+        esc(LL('شهراً', 'months')) + ')</small></h3>' + bars +
       '<div class="kpis sm">' +
-        kpi('📊', (ps.avg == null ? '—' : ps.avg + '%'), LL('متوسط تحقيق الهدف', 'ממוצע עמידה ביעד'), '#3b82f6') +
-        kpi('✔', ps.above == null ? '—' : ps.above + '/' + ps.n, LL('أشهر فوق الهدف', 'חודשים מעל היעד'), '#10b981') +
+        kpi('📊', (ps.avg == null ? '—' : ps.avg + '%'), LL('متوسط تحقيق الهدف', 'Average target attainment'), '#3b82f6') +
+        kpi('✔', ps.above == null ? '—' : ps.above + '/' + ps.n, LL('أشهر فوق الهدف', 'Months above target'), '#10b981') +
         kpi('📐', ps.consistency == null ? '—' : ps.consistency, T('perf_consist'), '#8b5cf6') +
-        kpi('📈', ps.trend == null ? '—' : (ps.trend > 0 ? '+' : '') + ps.trend, LL('اتجاه آخر 6 أشهر', 'מגמה 6 חודשים'), '#22d3ee') +
-        kpi('🎚', ps.sd == null ? '—' : '±' + ps.sd, LL('تشتّت', 'פיזור'), '#f59e0b') +
+        kpi('📈', ps.trend == null ? '—' : (ps.trend > 0 ? '+' : '') + ps.trend, LL('اتجاه آخر 6 أشهر', 'Trend over the last 6 months'), '#22d3ee') +
+        kpi('🎚', ps.sd == null ? '—' : '±' + ps.sd, LL('تشتّت', 'Spread'), '#f59e0b') +
       '</div>' +
       '<div class="split"><div><small class="muted">' + esc(T('manager_says')) + '</small><br>' +
         '<span class="pill" style="--c:' + gcolor(e.group) + '">' + esc(gname(e.group)) + '</span></div>' +
@@ -421,11 +421,11 @@
         '<small class="muted">' + cc.score + '/100</small></div></div>' +
       (cc.conflict ? '<div class="alert warn-box">⚠ ' + esc(T('review_class')) + ' — ' +
         esc(cc.direction === 'manager_higher'
-          ? LL('تصنيف المدير أعلى مما تدعمه البيانات', 'סיווג המנהל גבוה ממה שהנתונים מראים')
-          : LL('البيانات تشير إلى أداء أفضل من تصنيف المدير', 'הנתונים מצביעים על ביצועים טובים מהסיווג')) +
-        '. ' + esc(LL('القرار يبقى للمدير.', 'ההחלטה נשארת של המנהל.')) + '</div>' : '') +
+          ? LL('تصنيف المدير أعلى مما تدعمه البيانات', 'The manager classification is higher than the data supports')
+          : LL('البيانات تشير إلى أداء أفضل من تصنيف المدير', 'The data points to better performance than the manager classification')) +
+        '. ' + esc(LL('القرار يبقى للمدير.', 'The decision stays with the manager.')) + '</div>' : '') +
       '<p class="muted sm">' + esc(LL('الأداء الفعلي والـ DNA رقمان مختلفان — لا يُدمجان في مؤشر واحد.',
-        'ביצועים בפועל ו-DNA הם שני מספרים שונים — הם לא מאוחדים למדד אחד.')) + '</p></div>';
+        'Actual performance and DNA are two different numbers — they are never merged into one measure.')) + '</p></div>';
   }
 
   function bindEmp(m) {
@@ -469,18 +469,18 @@
       }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table>' +
       (rows ? '' : '<p class="muted" style="padding:14px 4px">' + esc(LL(
         'لا يوجد مرشّحون بعد. أي شخص يفتح الرابط ويختار «أنا مرشّح جديد» ويكمل التحدي سيظهر هنا تلقائياً مع تقريره الكامل.',
-        'אין עדיין מועמדים. כל מי שייכנס לקישור, יבחר «אני מועמד חדש» ויסיים את האתגר יופיע כאן אוטומטית עם הדוח המלא.')) + '</p>') +
+        'No candidates yet. Anyone who opens the link, picks "I am a new candidate" and finishes the challenge shows up here automatically with their full report.')) + '</p>') +
       '</div>';
   }
 
   function stageTag(c) {
     var lang = UI.getLang();
-    var txt = c.decision === 'hired' ? (lang === 'he' ? 'התקבל' : 'تم التوظيف')
-            : c.decision === 'interview' ? (lang === 'he' ? 'ראיון' : 'مقابلة')
-            : c.decision === 'reject' ? (lang === 'he' ? 'נעצר' : 'متوقف')
-            : c.focus ? (lang === 'he' ? 'הושלם + פוקוס' : 'مكتمل + التركيز')
-            : c.nc ? (lang === 'he' ? 'הושלם' : 'مكتمل')
-            : (lang === 'he' ? 'נרשם' : 'مسجّل');
+    var txt = c.decision === 'hired' ? (lang === 'en' ? 'Hired' : 'تم التوظيف')
+            : c.decision === 'interview' ? (lang === 'en' ? 'Interview' : 'مقابلة')
+            : c.decision === 'reject' ? (lang === 'en' ? 'Stopped' : 'متوقف')
+            : c.focus ? (lang === 'en' ? 'Complete + focus' : 'مكتمل + التركيز')
+            : c.nc ? (lang === 'en' ? 'Complete' : 'مكتمل')
+            : (lang === 'en' ? 'Registered' : 'مسجّل');
     return '<span class="stage-tag">' + esc(txt) + '</span>';
   }
 
@@ -509,7 +509,7 @@
         '<div class="card"><p class="muted">' + esc(T('no_assessment')) + '</p></div>';
     }
     var lang = UI.getLang(), sc = rep.score, D = NC.DIMS;
-    var dn = function (k) { return lang === 'he' ? D[k].he : D[k].ar; };
+    var dn = function (k) { return lang === 'en' ? D[k].en : D[k].ar; };
     var strong = rep.groups.strong.dims;
     var rec = rep.band === 'high' ? T('rec_proceed') : rep.band === 'mid' ? T('rec_review') : T('rec_low');
     var conf = Engine.matchConfidence(s);
@@ -543,7 +543,7 @@
     out += '<div class="score-row">' +
       scoreTile('🎯', esc(T('run_25')), sc.match, '#8b5cf6') +
       scoreTile('🧠', esc(T('focus_title')), c.focus ? c.focus.focus : null, '#22d3ee') +
-      scoreTile(NC.DIMS.commit.icon, esc(lang === 'he' ? NC.DIMS.commit.he : NC.DIMS.commit.ar), sc.dims.commit, '#ec4899') +
+      scoreTile(NC.DIMS.commit.icon, esc(lang === 'en' ? NC.DIMS.commit.en : NC.DIMS.commit.ar), sc.dims.commit, '#ec4899') +
       scoreTile('✔', esc(T('consistency_idx')), sc.consistency, '#10b981') +
       '</div>';
 
@@ -558,7 +558,7 @@
             (b != null ? '<i class="dim-bench" style="inset-inline-start:' + b + '%" title="' + esc(T('group_strong')) + ' ' + b + '"></i>' : '') +
             '</div><div class="dim-val" style="color:' + UI.tone(v || 0) + '">' + (v == null ? '—' : v) + '</div></div>';
         }).join('') +
-        '<p class="muted sm">▍ ' + esc(lang === 'he' ? 'הסימון האנכי = ממוצע העובדים החזקים' : 'الخط العمودي = متوسط الموظفين الأقوياء') + '</p>' +
+        '<p class="muted sm">▍ ' + esc(lang === 'en' ? 'The vertical line = the average of the strong employees' : 'الخط العمودي = متوسط الموظفين الأقوياء') + '</p>' +
       '</div>' +
       '<div class="card"><h3>' + esc(T('vs_strong')) + '</h3>' +
         UI.radar([{ name: c.name, color: '#8b5cf6', traits: sc.dims },
@@ -566,7 +566,7 @@
                  { size: 340, keys: NC.DIM_KEYS, dict: D }) + '</div>' +
       '</div>';
 
-    /* where he matches the strong team and where he differs */
+    /* where the candidate matches the strong team and where they differ */
     out += '<div class="grid2">' +
       '<div class="card"><h3>🔥 ' + esc(T('common_strong')) + '</h3>' +
         com.common.map(function (r) {
@@ -574,13 +574,13 @@
             '<span class="muted sm">' + r.cand + ' / ' + r.strong + '</span>' +
             '<span class="sim-v">' + r.match + '%</span></div>';
         }).join('') +
-        '<p class="muted sm">' + esc(LL('نسبة التشابه في كل بعد مع متوسط الأقوياء.', 'אחוז הדמיון בכל מדד מול ממוצע החזקים.')) + '</p></div>' +
+        '<p class="muted sm">' + esc(LL('نسبة التشابه في كل بعد مع متوسط الأقوياء.', 'The similarity on each dimension against the average of the strong employees.')) + '</p></div>' +
       '<div class="card"><h3>⚠ ' + esc(T('differences')) + '</h3>' +
         (com.differences.length ? com.differences.map(function (r) {
           return '<div class="diff-row">' + NC.DIMS[r.key].icon + ' <b>' + esc(dn(r.key)) + '</b>' +
-            '<span class="muted sm">' + r.cand + ' ' + esc(LL('مقابل', 'מול')) + ' ' + r.strong + '</span>' +
+            '<span class="muted sm">' + r.cand + ' ' + esc(LL('مقابل', 'vs')) + ' ' + r.strong + '</span>' +
             '<span class="diff-gap">' + r.delta + '</span></div>';
-        }).join('') : '<p class="muted">' + esc(LL('لا فروقات جوهرية عن الأقوياء.', 'אין פערים מהותיים מול החזקים.')) + '</p>') + '</div>' +
+        }).join('') : '<p class="muted">' + esc(LL('لا فروقات جوهرية عن الأقوياء.', 'No fundamental gaps against the strong employees.')) + '</p>') + '</div>' +
       '</div>';
 
     /* flags */
@@ -602,11 +602,11 @@
       '<p class="muted sm">' + esc(T('open_anyway')) + '</p>' +
       '<h4>' + esc(T('followup')) + '</h4>' +
       '<div class="form inline">' +
-      '<label class="fld"><span>' + esc(UI.getLang() === 'he' ? 'יום' : 'اليوم') + '</span><select id="fuDay"><option>30</option><option>90</option><option>180</option></select></label>' +
+      '<label class="fld"><span>' + esc(UI.getLang() === 'en' ? 'Day' : 'اليوم') + '</span><select id="fuDay"><option>30</option><option>90</option><option>180</option></select></label>' +
       '<label class="fld"><span>' + esc(T('target_pct')) + '</span><input id="fuTarget" type="number" value="100"></label>' +
       '<button class="btn" id="fuAdd">' + esc(T('add_followup')) + '</button></div>' +
       (c.followups && c.followups.length ? '<table class="tbl sm"><tbody>' + c.followups.map(function (f) {
-        return '<tr><td>' + f.day + ' ' + (UI.getLang() === 'he' ? 'ימים' : 'يوم') + '</td><td>' + f.targetPct + '%</td></tr>';
+        return '<tr><td>' + f.day + ' ' + (UI.getLang() === 'en' ? 'days' : 'يوم') + '</td><td>' + f.targetPct + '%</td></tr>';
       }).join('') + '</tbody></table>' : '') +
       '</div></div>';
     return out;
@@ -619,15 +619,15 @@
 
   function whyText(rep, com, c, conf) {
     var lang = UI.getLang();
-    var top = com.common.slice(0, 2).map(function (r) { return (lang === 'he' ? NC.DIMS[r.key].he : NC.DIMS[r.key].ar) + ' ' + r.match + '%'; });
-    var gap = com.differences.slice(0, 2).map(function (r) { return (lang === 'he' ? NC.DIMS[r.key].he : NC.DIMS[r.key].ar) + ' ' + r.delta; });
+    var top = com.common.slice(0, 2).map(function (r) { return (lang === 'en' ? NC.DIMS[r.key].en : NC.DIMS[r.key].ar) + ' ' + r.match + '%'; });
+    var gap = com.differences.slice(0, 2).map(function (r) { return (lang === 'en' ? NC.DIMS[r.key].en : NC.DIMS[r.key].ar) + ' ' + r.delta; });
     var parts = [];
-    if (rep.sims.strong != null) parts.push(LL('تشابه مع الأقوياء ', 'דמיון לחזקים ') + rep.sims.strong + '%');
-    if (top.length) parts.push(LL('الأقرب: ', 'הקרוב ביותר: ') + top.join(', '));
-    if (gap.length) parts.push(LL('فجوة: ', 'פער: ') + gap.join(', '));
-    if (rep.score.consistency != null) parts.push(LL('اتساق ', 'עקביות ') + rep.score.consistency + '%');
-    parts.push(LL('ثقة النموذج ', 'ביטחון המודל ') + T('conf_' + conf.level));
-    if (c.focus) parts.push(LL('التركيز ', 'פוקוס ') + c.focus.focus + ' (' + LL('بوزن صفر', 'במשקל אפס') + ')');
+    if (rep.sims.strong != null) parts.push(LL('تشابه مع الأقوياء ', 'Similarity to the strong ') + rep.sims.strong + '%');
+    if (top.length) parts.push(LL('الأقرب: ', 'Closest: ') + top.join(', '));
+    if (gap.length) parts.push(LL('فجوة: ', 'Gap: ') + gap.join(', '));
+    if (rep.score.consistency != null) parts.push(LL('اتساق ', 'Consistency ') + rep.score.consistency + '%');
+    parts.push(LL('ثقة النموذج ', 'Model confidence ') + T('conf_' + conf.level));
+    if (c.focus) parts.push(LL('التركيز ', 'Focus ') + c.focus.focus + ' (' + LL('بوزن صفر', 'at zero weight') + ')');
     return parts.join(' · ');
   }
 
@@ -635,23 +635,23 @@
   function flagCards(sc, strong, lang) {
     var D = NC.DIMS, out = [];
     var hard = sc.flags.map(function (f) {
-      return { dot: f.sev >= 3 ? '🔴' : '🟡', txt: lang === 'he' ? f.he : f.ar, sev: f.sev };
+      return { dot: f.sev >= 3 ? '🔴' : '🟡', txt: lang === 'en' ? f.en : f.ar, sev: f.sev };
     });
     if (!hard.length) {
-      out.push({ dot: '🟢', txt: lang === 'he' ? 'לא זוהתה בעיית מחויבות מהותית' : 'لا توجد مشكلة التزام جوهرية', sev: 0 });
+      out.push({ dot: '🟢', txt: lang === 'en' ? 'No fundamental commitment issue found' : 'لا توجد مشكلة التزام جوهرية', sev: 0 });
     }
     NC.DIM_KEYS.forEach(function (k) {
       var v = sc.dims[k], b = strong[k];
       if (v == null || b == null) return;
-      var name = lang === 'he' ? D[k].he : D[k].ar;
+      var name = lang === 'en' ? D[k].en : D[k].ar;
       var d = v - b;
-      if (d >= 6) out.push({ dot: '🟢', txt: (lang === 'he' ? 'גבוה מהבנצ׳מרק ב' : 'أعلى من معيار الأقوياء في ') + name + ' (' + v + ' / ' + b + ')', sev: 0 });
-      else if (d >= -4) out.push({ dot: '🟢', txt: name + (lang === 'he' ? ' בקו עם העובדים החזקים' : ' بمستوى الموظفين الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 0 });
-      else if (d >= -14) out.push({ dot: '🟡', txt: name + (lang === 'he' ? ' מעט מתחת לבנצ׳מרק' : ' أقل قليلاً من معيار الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 1 });
-      else out.push({ dot: '🔴', txt: name + (lang === 'he' ? ' נמוך משמעותית מהבנצ׳מרק' : ' أقل بوضوح من معيار الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 2 });
+      if (d >= 6) out.push({ dot: '🟢', txt: (lang === 'en' ? 'Above the strong benchmark on ' : 'أعلى من معيار الأقوياء في ') + name + ' (' + v + ' / ' + b + ')', sev: 0 });
+      else if (d >= -4) out.push({ dot: '🟢', txt: name + (lang === 'en' ? ' is in line with the strong employees' : ' بمستوى الموظفين الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 0 });
+      else if (d >= -14) out.push({ dot: '🟡', txt: name + (lang === 'en' ? ' is slightly below the strong benchmark' : ' أقل قليلاً من معيار الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 1 });
+      else out.push({ dot: '🔴', txt: name + (lang === 'en' ? ' is clearly below the strong benchmark' : ' أقل بوضوح من معيار الأقوياء') + ' (' + v + ' / ' + b + ')', sev: 2 });
     });
     if (sc.consistency != null && sc.consistency < 70) {
-      out.push({ dot: '🔴', txt: (lang === 'he' ? 'עקביות נמוכה בין שאלות ההצלבה' : 'اتساق منخفض في أسئلة التقاطع') + ' (' + sc.consistency + '%)', sev: 2 });
+      out.push({ dot: '🔴', txt: (lang === 'en' ? 'Low consistency on the cross-check questions' : 'اتساق منخفض في أسئلة التقاطع') + ' (' + sc.consistency + '%)', sev: 2 });
     }
     return out.sort(function (a, b) { return b.sev - a.sev; })
       .map(function (f) { return '<div class="flag sev' + f.sev + '">' + f.dot + ' ' + esc(f.txt) + '</div>'; }).join('');
@@ -672,21 +672,21 @@
       '<div class="focus-head">' + UI.ring(f.focus, 'FOCUS', 120) +
         '<div class="focus-subs">' +
           ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
-            return '<div class="fsub"><small>' + esc(lang === 'he' ? SUB[k].he : SUB[k].ar) + '</small>' +
+            return '<div class="fsub"><small>' + esc(lang === 'en' ? SUB[k].en : SUB[k].ar) + '</small>' +
               '<b style="color:' + UI.tone(f.sub[k]) + '">' + f.sub[k] + '</b></div>';
           }).join('') +
         '</div></div>' +
       '<div class="focus-raw">' +
-        rawItem('👁 ' + (lang === 'he' ? 'הבדלים שנמצאו' : 'الاختلافات التي وُجدت'), f.raw.found + '/' + f.raw.total) +
-        rawItem('⏱ ' + (lang === 'he' ? 'זיהוי ראשון' : 'أول اكتشاف'), (f.raw.first != null ? f.raw.first + 's' : '—')) +
-        rawItem('⏳ ' + (lang === 'he' ? 'זמן כולל' : 'الوقت الكلي'), (f.raw.elapsed || 0) + 's') +
-        rawItem('❌ ' + (lang === 'he' ? 'לחיצות שגויות' : 'ضغطات خاطئة'), f.raw.wrong) +
-        rawItem('⚡ ' + (lang === 'he' ? 'תשובות נכונות (Quick Scan)' : 'إجابات صحيحة (Quick Scan)'), f.raw.scanCorrect + '/' + f.raw.scanTotal) +
-        rawItem('🕒 ' + (lang === 'he' ? 'זמן תגובה ממוצע' : 'متوسط زمن الرد'), f.raw.scanAvg + 's') +
+        rawItem('👁 ' + (lang === 'en' ? 'Differences found' : 'الاختلافات التي وُجدت'), f.raw.found + '/' + f.raw.total) +
+        rawItem('⏱ ' + (lang === 'en' ? 'First find' : 'أول اكتشاف'), (f.raw.first != null ? f.raw.first + 's' : '—')) +
+        rawItem('⏳ ' + (lang === 'en' ? 'Total time' : 'الوقت الكلي'), (f.raw.elapsed || 0) + 's') +
+        rawItem('❌ ' + (lang === 'en' ? 'Wrong clicks' : 'ضغطات خاطئة'), f.raw.wrong) +
+        rawItem('⚡ ' + (lang === 'en' ? 'Correct answers (Quick Scan)' : 'إجابات صحيحة (Quick Scan)'), f.raw.scanCorrect + '/' + f.raw.scanTotal) +
+        rawItem('🕒 ' + (lang === 'en' ? 'Average response time' : 'متوسط زمن الرد'), f.raw.scanAvg + 's') +
       '</div>' +
       (bench != null ? '<div class="alert ' + (verdict === 'focus_below' ? 'warn-box' : 'ok-box') + '">' +
         esc(T('focus_bench')) + ': <b>' + esc(T(verdict)) + '</b> — ' +
-        esc(lang === 'he' ? 'ממוצע צוות ' : 'متوسط الفريق ') + bench + ' (' + fs.all.n + ')' +
+        esc(lang === 'en' ? 'Team average ' : 'متوسط الفريق ') + bench + ' (' + fs.all.n + ')' +
         '</div>' : '') +
       '<table class="tbl sm"><thead><tr><th></th><th>FOCUS</th><th>n</th></tr></thead><tbody>' +
         ['strong', 'medium', 'low'].map(function (g) {
@@ -694,7 +694,7 @@
             '<td>' + (fs[g].focus == null ? '—' : fs[g].focus) + '</td><td class="muted">' + fs[g].n + '</td></tr>';
         }).join('') + '</tbody></table>' +
       '<p class="muted sm">' + esc(fs.reliable
-        ? (lang === 'he' ? 'קיים פער עקבי בין חזקים לחלשים במדד הזה — עדיין לא נכנס לציון ההתאמה.'
+        ? (lang === 'en' ? 'There is a consistent gap between strong and low performers on this measure — even so, it does not enter the match score.'
                          : 'يوجد فارق ثابت بين الأقوياء والضعفاء في هذا المؤشر — ومع ذلك لا يدخل في نسبة التطابق.')
         : T('focus_corr_none')) + '</p></div>';
   }
@@ -738,7 +738,7 @@
   /* ================= COMPANY DNA ================= */
   function companyDNA() {
     var s = st(), gs = Engine.groupStats(s.employees);
-    return head(T('company_dna'), UI.getLang() === 'he' ? 'הפרופיל שנבנה מכלל העובדים שנבדקו' : 'البروفايل المبني من كل الموظفين الذين تم فحصهم') +
+    return head(T('company_dna'), UI.getLang() === 'en' ? 'The profile built from every employee assessed' : 'البروفايل المبني من كل الموظفين الذين تم فحصهم') +
       '<div class="grid2">' +
       '<div class="card"><h3>COMPANY SALES DNA <small class="muted">(n=' + gs.company.n + ')</small></h3>' +
         UI.bars(TK.map(function (t) { return { label: lname(t), icon: Q.TRAITS[t].icon, value: gs.company.traits[t], color: Q.TRAITS[t].color }; })) + '</div>' +
@@ -767,15 +767,15 @@
         return { label: lname(r.key), icon: Q.TRAITS[r.key].icon, value: r.strong, color: Q.TRAITS[r.key].color };
       })) +
       '<p class="muted sm">' + esc(LL('هذه متوسطات الموظفين الأقوياء فقط — وليست بالضرورة ما يفرّقهم عن غيرهم.',
-        'אלו הממוצעים של העובדים החזקים בלבד — לא בהכרח מה שמבדיל אותם מהאחרים.')) + '</p></div>';
+        'These are the averages of the strong employees only — not necessarily what sets them apart from everyone else.')) + '</p></div>';
   }
 
   function diffBlock() {
     var d = Engine.differentiators(st().employees);
-    var rate = { very_high: ['🔥 ' + LL('فارق كبير جداً', 'פער גבוה מאוד'), '#10b981'],
-                 high:      ['🔥 ' + LL('فارق كبير', 'פער גבוה'), '#22d3ee'],
-                 medium:    ['🟡 ' + LL('فارق متوسط', 'פער בינוני'), '#f59e0b'],
-                 low:       ['⚪ ' + LL('لا يفرّق', 'לא מבדיל'), '#8ea0c4'],
+    var rate = { very_high: ['🔥 ' + LL('فارق كبير جداً', 'Very large gap'), '#10b981'],
+                 high:      ['🔥 ' + LL('فارق كبير', 'Large gap'), '#22d3ee'],
+                 medium:    ['🟡 ' + LL('فارق متوسط', 'Medium gap'), '#f59e0b'],
+                 low:       ['⚪ ' + LL('لا يفرّق', 'Does not separate'), '#8ea0c4'],
                  unknown:   ['—', '#8ea0c4'] };
     return '<div class="card"><h3>⚖️ ' + esc(T('differentiators')) + '</h3>' +
       '<table class="tbl"><thead><tr><th>' + esc(T('name')) + '</th><th>' + esc(T('group_strong')) + '</th>' +
@@ -791,9 +791,9 @@
       }).join('') + '</tbody></table>' +
       '<div class="rec-box high">KEY SUCCESS DIFFERENTIATORS: <b>' +
         (d.keys.length ? d.keys.map(function (r) { return Q.TRAITS[r.key].icon + ' ' + esc(lname(r.key)); }).join(' · ')
-                       : esc(LL('لا يوجد فارق واضح بعد', 'אין עדיין פער מובהק'))) + '</b></div>' +
+                       : esc(LL('لا يوجد فارق واضح بعد', 'No clear gap yet'))) + '</b></div>' +
       '<p class="muted sm">' + esc(LL('الصفات التي يتشابه فيها الجميع لا تحصل على وزن كبير في نموذج المرشّح.',
-        'תכונות שכולם דומים בהן לא מקבלות משקל גבוה במודל המועמד.')) + '</p></div>';
+        'Traits where everyone looks alike do not carry much weight in the candidate model.')) + '</p></div>';
   }
 
   /* ================= PATTERNS ================= */
@@ -801,7 +801,7 @@
     var s = st(), lw = Engine.learnWeights(s.employees);
     var order = TK.slice().sort(function (a, b) { return lw.separation[b] - lw.separation[a]; });
     var qp = Engine.questionPower(s.employees);
-    return head('AI PATTERN DISCOVERY', UI.getLang() === 'he' ? 'מה באמת מבדיל בין חזקים לחלשים' : 'ما الذي يفرّق فعلاً بين الأقوياء والضعفاء',
+    return head('AI PATTERN DISCOVERY', UI.getLang() === 'en' ? 'What actually separates the strong from the low performers' : 'ما الذي يفرّق فعلاً بين الأقوياء والضعفاء',
       '<button class="btn btn-primary" id="runPattern">⚡ ' + esc(T('find_pattern')) + '</button>') +
       '<div id="patternOut">' +
       '<div class="grid2"><div class="card"><h3>' + esc(T('top_traits')) + '</h3>' +
@@ -815,11 +815,11 @@
         '<h4>' + esc(T('weights_25')) + '</h4>' +
         '<div class="chips">' + NC.DIM_KEYS.map(function (k) {
           var w = (st().settings.ncWeights || NC.defaultWeights())[k];
-          return '<span class="chip">' + NC.DIMS[k].icon + ' ' + esc(UI.getLang() === 'he' ? NC.DIMS[k].he : NC.DIMS[k].ar) + ' <b>' + w + '%</b></span>';
+          return '<span class="chip">' + NC.DIMS[k].icon + ' ' + esc(UI.getLang() === 'en' ? NC.DIMS[k].en : NC.DIMS[k].ar) + ' <b>' + w + '%</b></span>';
         }).join('') + '<span class="chip">' + esc(T('consistency_idx')) + ' <b>' + NC.CONSISTENCY_W + '%</b></span></div>' +
         '<div class="btn-row"><button class="btn" id="calW">⚖ ' + esc(T('calibrate')) + '</button>' +
         '<button class="btn btn-ghost" id="resetNcW">↺</button></div>' +
-        (lw.learned ? '' : '<p class="muted sm">⚠ ' + esc(UI.getLang() === 'he' ? 'מעט מדי עובדים שנבדקו — המשקלים עדיין לא יציבים.' : 'عدد الموظفين المفحوصين قليل — الأوزان غير مستقرة بعد.') + '</p>') +
+        (lw.learned ? '' : '<p class="muted sm">⚠ ' + esc(UI.getLang() === 'en' ? 'Too few employees assessed — the weights are not stable yet.' : 'عدد الموظفين المفحوصين قليل — الأوزان غير مستقرة بعد.') + '</p>') +
       '</div>' +
       '<div class="card"><h3>' + esc(T('top_questions')) + '</h3><table class="tbl sm"><thead><tr><th>Q</th><th>' + esc(T('group_strong')) + '</th><th>' + esc(T('group_low')) + '</th><th>Δ</th></tr></thead><tbody>' +
         qp.slice(0, 10).map(function (r) {
@@ -838,19 +838,19 @@
     var qq = Engine.ncQuestionQuality(st().employees);
     var rate = { strong: ['🔥', '#10b981'], medium: ['🟡', '#f59e0b'], weak: ['🔴', '#ef4444'], nodata: ['⚪', '#8ea0c4'] };
     return '<div class="card"><h3>❓ ' + esc(T('q_quality')) + ' <small class="muted">— ' +
-      esc(LL('حسب إجابات ' + qq.staff + ' موظفاً على نفس المقياس', 'לפי תשובות ' + qq.staff + ' עובדים על אותו מדד')) + '</small></h3>' +
+      esc(LL('حسب إجابات ' + qq.staff + ' موظفاً على نفس المقياس', 'Based on the answers of ' + qq.staff + ' employees on the same scale')) + '</small></h3>' +
       '<div class="kpis sm">' +
-        kpi('🔥', qq.counts.strong, LL('أسئلة قوية', 'שאלות חזקות'), '#10b981') +
-        kpi('🟡', qq.counts.medium, LL('متوسطة', 'בינוניות'), '#f59e0b') +
-        kpi('🔴', qq.counts.weak, LL('ضعيفة', 'חלשות'), '#ef4444') +
-        kpi('⚪', qq.counts.nodata, LL('بلا بيانات', 'ללא נתונים'), '#8ea0c4') +
+        kpi('🔥', qq.counts.strong, LL('أسئلة قوية', 'Strong questions'), '#10b981') +
+        kpi('🟡', qq.counts.medium, LL('متوسطة', 'Medium'), '#f59e0b') +
+        kpi('🔴', qq.counts.weak, LL('ضعيفة', 'Weak'), '#ef4444') +
+        kpi('⚪', qq.counts.nodata, LL('بلا بيانات', 'No data'), '#8ea0c4') +
       '</div>' +
       '<table class="tbl sm"><thead><tr><th>Q</th><th>' + esc(T('group_strong')) + '</th><th>' + esc(T('group_medium')) +
-      '</th><th>' + esc(T('group_low')) + '</th><th>Δ</th><th>' + esc(LL('اختاروا الأفضل', 'בחרו את הטובה')) + '</th><th></th></tr></thead><tbody>' +
+      '</th><th>' + esc(T('group_low')) + '</th><th>Δ</th><th>' + esc(LL('اختاروا الأفضل', 'Picked the best answer')) + '</th><th></th></tr></thead><tbody>' +
       qq.rows.map(function (r) {
         var m = rate[r.rating];
         return '<tr><td><b>' + r.qid + '</b> <small class="muted">L' + r.lvl + '</small>' +
-          (r.staffOnly ? ' <span class="tag aud">' + esc(LL('للمرشحين فقط', 'למועמדים בלבד')) + '</span>' : '') + '</td>' +
+          (r.staffOnly ? ' <span class="tag aud">' + esc(LL('للمرشحين فقط', 'Candidates only')) + '</span>' : '') + '</td>' +
           '<td>' + (r.strong == null ? '—' : r.strong) + '</td>' +
           '<td>' + (r.medium == null ? '—' : r.medium) + '</td>' +
           '<td>' + (r.low == null ? '—' : r.low) + '</td>' +
@@ -861,7 +861,7 @@
           '<td>' + m[0] + '</td></tr>';
       }).join('') + '</tbody></table>' +
       '<p class="muted sm">' + esc(LL('العمود قبل الأخير: نسبة من اختار الإجابة الأعلى قيمة في كل مجموعة (أقوياء / متوسطون / ضعفاء). السؤال الذي يجيب عليه الجميع بنفس الشكل لا يعطي معلومة.',
-        'העמודה לפני האחרונה: אחוז מי שבחר את התשובה בעלת הערך הגבוה בכל קבוצה. שאלה שכולם עונים עליה אותו דבר לא מוסיפה מידע.')) + '</p></div>';
+        'The second-to-last column: the share who picked the highest-value answer in each group (strong / medium / low). A question everyone answers the same way carries no information.')) + '</p></div>';
   }
 
   function bindPatterns(m) {
@@ -872,7 +872,7 @@
       run.disabled = true; run.textContent = '⏳ ...';
       setTimeout(function () {
         out.style.opacity = '1'; run.disabled = false; run.textContent = '⚡ ' + T('find_pattern');
-        UI.confetti(30); UI.toast(UI.getLang() === 'he' ? 'הדפוסים חושבו מחדש' : 'تم إعادة حساب الأنماط');
+        UI.confetti(30); UI.toast(UI.getLang() === 'en' ? 'The patterns were recalculated' : 'تم إعادة حساب الأنماط');
         body();
       }, 900);
     };
@@ -892,7 +892,7 @@
     var cal = document.getElementById('calW');
     if (cal) cal.onclick = function () {
       var s = st(), r = Engine.calibrate6(s.employees);
-      if (!r.enough) return UI.toast(UI.getLang() === 'he' ? 'אין מספיק עובדים שנבדקו' : 'عدد الموظفين المفحوصين غير كافٍ', 'bad');
+      if (!r.enough) return UI.toast(UI.getLang() === 'en' ? 'Not enough employees have been assessed' : 'عدد الموظفين المفحوصين غير كافٍ', 'bad');
       s.settings.ncWeights = r.weights;
       UI.confetti(30);
       if (srv()) return push(API.saveSettings({ ncWeights: r.weights }), '✔ ' + T('calibrate'));
@@ -911,13 +911,13 @@
     var qp = {}; Engine.questionPower(st().employees).forEach(function (r) { qp[r.qid] = r; });
     var byZone = {};
     Q.all.forEach(function (q) { (byZone[q.zone] = byZone[q.zone] || []).push(q); });
-    var audTag = { emp: UI.getLang() === 'he' ? 'עובדים בלבד' : 'للموظفين فقط',
-                   cand: UI.getLang() === 'he' ? 'מועמדים בלבד' : 'للمرشحين فقط' };
+    var audTag = { emp: UI.getLang() === 'en' ? 'Employees only' : 'للموظفين فقط',
+                   cand: UI.getLang() === 'en' ? 'Candidates only' : 'للمرشحين فقط' };
     return head(T('nav_questions'),
-      Q.all.length + ' ' + (UI.getLang() === 'he' ? 'שאלות במאגר · ' : 'سؤال في المخزون · ') + T('q_bank_note')) +
+      Q.all.length + ' ' + (UI.getLang() === 'en' ? 'questions in the bank · ' : 'سؤال في المخزون · ') + T('q_bank_note')) +
       '<div class="card"><p class="muted sm">' +
-        esc(UI.getLang() === 'he'
-          ? '⚠ כלל מערכת: לעובד קיים לא מוצגות שאלות על לימודים, עבודה אחרת, מעבר עבודה או תוכניות עתידיות — הן מסומנות "למועמדים בלבד".'
+        esc(UI.getLang() === 'en'
+          ? '⚠ System rule: an existing employee is never shown any question about studying, another job, leaving, or future plans — those are all marked "candidates only".'
           : '⚠ قاعدة النظام: لا تُعرض على الموظف الحالي أي أسئلة عن الدراسة أو عمل آخر أو الانتقال أو الخطط المستقبلية — وهي مُعلَّمة "للمرشحين فقط".') +
       '</p></div>' +
       Q.ZONES.map(function (z) {
@@ -936,10 +936,10 @@
               (q.hidden ? '<span class="tag">adaptive</span>' : '') +
               (r && r.sep != null ? '<span class="tag ' + (r.verdict === 'strong' ? 'good' : r.verdict === 'weak' ? 'bad' : '') + '">Δ' + r.sep + '</span>' : '') +
               '</div>' +
-              (q.line ? '<div class="qrow-q" style="color:#93c5fd">🗣 "' + esc(q.line) + '"</div>' : '') +
-              '<div class="qrow-q">' + esc(q.q) + '</div>' +
+              (q.line ? '<div class="qrow-q" style="color:#93c5fd">🗣 "' + esc(UI.qt(q, 'line')) + '"</div>' : '') +
+              '<div class="qrow-q">' + esc(UI.qt(q, 'q')) + '</div>' +
               '<ol class="qrow-a">' + q.a.map(function (o) {
-                return '<li><span class="sc" style="color:' + UI.tone(o.s) + '">' + o.s + '</span> ' + esc(o.t) +
+                return '<li><span class="sc" style="color:' + UI.tone(o.s) + '">' + o.s + '</span> ' + esc(UI.qt(o, 't')) +
                   (o.f ? ' <em class="fl">🚩' + esc(o.f) + '</em>' : '') + (o.fu ? ' <em class="fl">→' + o.fu + '</em>' : '') + '</li>';
               }).join('') + '</ol></div>';
           }).join('') + '</div>';
@@ -952,26 +952,26 @@
     var val = s.settings.spotValidated;
     var verdictBox = {
       insufficient: ['warn-box', LL('لا توجد بيانات كافية بعد. شغّل التحدي لدى الموظفين الأقوياء والضعفاء قبل استخدامه في أي قرار.',
-                                    'אין עדיין מספיק נתונים. הרץ את האתגר אצל עובדים חזקים וחלשים לפני שימוש בהחלטה.')],
+                                    'Not enough data yet. Run the challenge with both strong and low performers before using it in any decision.')],
       no_signal:    ['warn-box', LL('النتائج متشابهة بين المجموعات — التحدي يبقى جزءاً من التجربة فقط، وبدون تأثير على القرار.',
-                                    'התוצאות דומות בין הקבוצות — האתגר נשאר חלק מהחוויה בלבד, בלי השפעה על ההחלטה.')],
+                                    'The results look alike across the groups — the challenge stays part of the experience only, with no effect on the decision.')],
       signal:       ['ok-box', LL('يوجد فارق ثابت بين الأقوياء والضعفاء — يستحق التحقيق، ومع ذلك وزنه في القرار ما زال صفراً حتى تقرر تغييره.',
-                                  'קיים פער עקבי בין חזקים לחלשים — שווה לחקור, ובכל זאת המשקל בהחלטה עדיין אפס עד שתחליט אחרת.')]
+                                  'There is a consistent gap between strong and low performers — worth investigating, yet its weight in the decision stays zero until you decide otherwise.')]
     }[fv.verdict];
 
     return head(T('nav_focus'), T('focus_note')) +
       '<div class="kpis">' +
-        kpi('🧠', fs.all.focus == null ? '—' : fs.all.focus, LL('متوسط الفريق', 'ממוצע צוות'), '#8b5cf6') +
-        kpi('👥', fs.all.n, LL('لعبوا التحدي', 'שיחקו'), '#3b82f6') +
-        kpi('Δ', fv.gap == null ? '—' : (fv.gap > 0 ? '+' : '') + fv.gap, LL('فارق أقوياء/ضعفاء', 'פער חזקים/חלשים'), '#22d3ee') +
+        kpi('🧠', fs.all.focus == null ? '—' : fs.all.focus, LL('متوسط الفريق', 'Team average'), '#8b5cf6') +
+        kpi('👥', fs.all.n, LL('لعبوا التحدي', 'Played the challenge'), '#3b82f6') +
+        kpi('Δ', fv.gap == null ? '—' : (fv.gap > 0 ? '+' : '') + fv.gap, LL('فارق أقوياء/ضعفاء', 'Strong / low gap'), '#22d3ee') +
         kpi('⚖', fv.weight + '%', T('focus_weight'), '#f59e0b') +
       '</div>' +
       '<div class="alert ' + verdictBox[0] + '">' + esc(verdictBox[1]) + '</div>' +
       '<div class="grid2">' +
-        '<div class="card"><h3>' + esc(LL('حسب المجموعة', 'לפי קבוצה')) + '</h3>' +
+        '<div class="card"><h3>' + esc(LL('حسب المجموعة', 'By group')) + '</h3>' +
           '<table class="tbl"><thead><tr><th></th><th>FOCUS</th>' +
           ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
-            return '<th>' + esc(UI.getLang() === 'he' ? SUB[k].he : SUB[k].ar) + '</th>';
+            return '<th>' + esc(UI.getLang() === 'en' ? SUB[k].en : SUB[k].ar) + '</th>';
           }).join('') + '<th>n</th></tr></thead><tbody>' +
           ['strong', 'medium', 'low'].map(function (g) {
             return '<tr><td><span class="pill" style="--c:' + gcolor(g) + '">' + esc(gname(g)) + '</span></td>' +
@@ -980,7 +980,7 @@
                 return '<td>' + (fs[g].sub[k] == null ? '—' : fs[g].sub[k]) + '</td>';
               }).join('') + '<td class="muted">' + fs[g].n + '</td></tr>';
           }).join('') + '</tbody></table></div>' +
-        '<div class="card"><h3>👁 ' + esc(LL('معايرة لعبة الاختلافات', 'כיול משחק ההבדלים')) + '</h3>' +
+        '<div class="card"><h3>👁 ' + esc(LL('معايرة لعبة الاختلافات', 'Spot-the-difference calibration')) + '</h3>' +
           '<div class="alert ' + (val && val.ok ? 'ok-box' : 'warn-box') + '">' +
             (val ? (val.ok ? '✅ ' + val.found + '/' + val.total + ' ' + esc(T('validated'))
                            : '⚠ ' + val.found + '/' + val.total + ' ' + esc(T('not_validated'))) +
@@ -989,9 +989,9 @@
           '<div class="btn-row"><button class="btn btn-primary" id="calSpot">🎯 ' + esc(T('calibrate_spot')) + '</button>' +
           '<button class="btn" id="hitBox">' + (s.settings.spotDebug ? '☑' : '☐') + ' ' + esc(T('show_hitboxes')) + '</button></div>' +
           '<p class="muted sm">' + esc(LL('كل اختلاف مخزّن بإحداثيات نسبية 0–1 ومنطقة ضغط لا تقل عن 30 بكسل، لذلك تعمل اللعبة بنفس الدقة على الجوال والحاسوب. وضع إظهار مناطق الضغط لا يظهر للمرشّح إطلاقاً.',
-            'כל הבדל נשמר בקואורדינטות יחסיות 0–1 ואזור לחיצה של 30px לפחות, כך שהמשחק מדויק במובייל ובדסקטופ. מצב אזורי הלחיצה לא מוצג למועמד.')) + '</p></div>' +
+            'Every difference is stored in relative 0–1 coordinates with a hit area of at least 30 pixels, so the game is equally precise on phone and desktop. The hit-area view is never shown to a candidate.')) + '</p></div>' +
       '</div>' +
-      '<div class="card"><h3>' + esc(LL('الموظفون', 'עובדים')) + '</h3><table class="tbl"><thead><tr>' +
+      '<div class="card"><h3>' + esc(LL('الموظفون', 'Employees')) + '</h3><table class="tbl"><thead><tr>' +
       '<th>' + esc(T('name')) + '</th><th>' + esc(T('perf')) + '</th><th>FOCUS</th><th>👁</th><th>❌</th><th>⚡</th><th></th></tr></thead><tbody>' +
       s.employees.map(function (e) {
         var f = e.focus;
@@ -1032,25 +1032,25 @@
     var hired = s.candidates.filter(function (c) { return c.decision === 'hired'; });
     var vmap = { good: ['✅', T('verdict_good'), '#10b981'], missed: ['❌', T('verdict_missed'), '#ef4444'],
                  pending: ['⏳', T('verdict_pending'), '#8ea0c4'] };
-    return head(T('nav_predict'), LL('هل تنبؤات المنظومة تتحقق فعلياً؟', 'האם התחזיות של המערכת מתממשות?')) +
+    return head(T('nav_predict'), LL('هل تنبؤات المنظومة تتحقق فعلياً؟', 'Do the predictions actually come true?')) +
       '<div class="kpis">' +
         kpi('🎯', pv.accuracy == null ? '—' : pv.accuracy + '%', T('pred_acc'), '#10b981') +
-        kpi('👤', pv.judged, LL('تنبؤات قابلة للفحص', 'תחזיות שנבדקו'), '#3b82f6') +
+        kpi('👤', pv.judged, LL('تنبؤات قابلة للفحص', 'Testable predictions'), '#3b82f6') +
         kpi('🔒', T('conf_' + conf.level), T('confidence'), '#8b5cf6') +
       '</div>' +
       '<div class="card"><h3>' + esc(T('confidence')) + '</h3><div class="chips">' +
         conf.reasons.map(function (r) {
-          var lbl = { strong_n: LL('موظفون أقوياء بالبيانات', 'חזקים עם נתונים'),
-                      low_n: LL('موظفون ضعفاء بالبيانات', 'חלשים עם נתונים'),
-                      history_n: LL('سجل أداء 6 أشهر+', 'היסטוריה 6 חודשים+'),
-                      separation: LL('صفات تفرّق فعلياً', 'תכונות מבדילות') }[r.k];
+          var lbl = { strong_n: LL('موظفون أقوياء بالبيانات', 'Strong employees with data'),
+                      low_n: LL('موظفون ضعفاء بالبيانات', 'Low performers with data'),
+                      history_n: LL('سجل أداء 6 أشهر+', 'Performance history 6 months+'),
+                      separation: LL('صفات تفرّق فعلياً', 'Traits that actually separate') }[r.k];
           return '<span class="chip' + (r.ok ? '' : ' bad') + '">' + (r.ok ? '✅' : '⚠') + ' ' + esc(lbl) + ': <b>' + r.v + '</b></span>';
         }).join('') + '</div>' +
         '<p class="muted sm">' + esc(LL('نسبة التطابق تُعرض دائماً مع مستوى ثقة — 91% مع 3 موظفين أقوياء ليست مثل 91% مع 30.',
-          'ההתאמה מוצגת תמיד עם רמת ביטחון — 91% עם 3 עובדים חזקים אינו 91% עם 30.')) + '</p></div>' +
-      '<div class="card"><h3>' + esc(LL('التحقق من التنبؤ', 'אימות החיזוי')) + '</h3>' +
+          'The match is always shown with a confidence level — 91% based on 3 strong employees is not the same as 91% based on 30.')) + '</p></div>' +
+      '<div class="card"><h3>' + esc(LL('التحقق من التنبؤ', 'Prediction validation')) + '</h3>' +
         (pv.rows.length ? '<table class="tbl"><thead><tr><th>' + esc(T('name')) + '</th><th>MATCH</th><th>' +
-          esc(LL('اليوم', 'יום')) + '</th><th>' + esc(T('target_pct')) + '</th><th>' + esc(LL('التصنيف الفعلي', 'סיווג בפועל')) +
+          esc(LL('اليوم', 'Day')) + '</th><th>' + esc(T('target_pct')) + '</th><th>' + esc(LL('التصنيف الفعلي', 'Actual classification')) +
           '</th><th>FOCUS</th><th></th></tr></thead><tbody>' +
           pv.rows.map(function (r) {
             var v = vmap[r.verdict];
@@ -1062,19 +1062,19 @@
               '<td>' + (r.focus == null ? '—' : r.focus) + '</td>' +
               '<td><span class="pill" style="--c:' + v[2] + '">' + v[0] + ' ' + esc(v[1]) + '</span></td></tr>';
           }).join('') + '</tbody></table>'
-          : '<p class="muted">' + esc(LL('لا يوجد موظفون تم توظيفهم عبر المنظومة بعد.', 'עדיין אין מועמדים שנקלטו דרך המערכת.')) + '</p>') +
+          : '<p class="muted">' + esc(LL('لا يوجد موظفون تم توظيفهم عبر المنظومة بعد.', 'Nobody has been hired through the system yet.')) + '</p>') +
       '</div>' +
       '<div class="card"><h3>' + esc(T('post_hire')) + ' — 30 / 90 / 180</h3>' +
         (hired.length ? hired.map(function (c) {
           return '<div class="ph-row"><div class="ph-head"><b>' + esc(c.name) + '</b>' +
             '<span class="muted sm">' + (c.hiredAt || c.createdAt) + '</span></div>' +
             '<div class="form inline">' +
-            '<label class="fld"><span>' + esc(LL('اليوم', 'יום')) + '</span><select data-ph="day" data-c="' + c.id + '">' +
+            '<label class="fld"><span>' + esc(LL('اليوم', 'Day')) + '</span><select data-ph="day" data-c="' + c.id + '">' +
               [30, 90, 180].map(function (d) { return '<option>' + d + '</option>'; }).join('') + '</select></label>' +
             '<label class="fld"><span>' + esc(T('target_pct')) + '</span><input type="number" data-ph="targetPct" data-c="' + c.id + '" value="100"></label>' +
             '<label class="fld"><span>' + esc(T('attendance')) + '</span><input type="number" data-ph="attendance" data-c="' + c.id + '" value="95"></label>' +
-            '<label class="fld"><span>' + esc(LL('انضباط', 'משמעת')) + '</span><input type="number" data-ph="discipline" data-c="' + c.id + '" value="85"></label>' +
-            '<label class="fld"><span>' + esc(LL('سرعة تعلّم', 'קצב למידה')) + '</span><input type="number" data-ph="learning" data-c="' + c.id + '" value="85"></label>' +
+            '<label class="fld"><span>' + esc(LL('انضباط', 'Discipline')) + '</span><input type="number" data-ph="discipline" data-c="' + c.id + '" value="85"></label>' +
+            '<label class="fld"><span>' + esc(LL('سرعة تعلّم', 'Learning speed')) + '</span><input type="number" data-ph="learning" data-c="' + c.id + '" value="85"></label>' +
             '<label class="fld"><span>' + esc(T('mgr_score')) + '</span><input type="number" data-ph="managerRating" data-c="' + c.id + '" value="8"></label>' +
             '<button class="btn" data-ph-save="' + c.id + '">+ ' + esc(T('add_followup')) + '</button></div>' +
             ((c.reviews || []).length ? '<table class="tbl sm"><tbody>' + c.reviews.map(function (r) {
@@ -1085,7 +1085,7 @@
                 '<td>' + (r.learning != null ? '🧠 ' + r.learning : '') + '</td>' +
                 '<td>' + (r.managerRating != null ? '⭐ ' + r.managerRating : '') + '</td></tr>';
             }).join('') + '</tbody></table>' : '') + '</div>';
-        }).join('') : '<p class="muted">' + esc(LL('لا يوجد بعد.', 'אין עדיין.')) + '</p>') +
+        }).join('') : '<p class="muted">' + esc(LL('لا يوجد بعد.', 'Nothing yet.')) + '</p>') +
       '</div>';
   }
 
@@ -1160,8 +1160,8 @@
             return '<option value="' + v + '"' + (s.settings.thresholds.stage1 === v ? ' selected' : '') + '>' + v + '%</option>';
           }).join('') + '</select></label>' +
         '<label class="fld"><span>🧠 ' + esc(T('focus_title')) + '</span><select id="fxOn">' +
-          '<option value="1"' + (s.settings.focusEnabled ? ' selected' : '') + '>' + esc(UI.getLang() === 'he' ? 'פעיל' : 'مفعّل') + '</option>' +
-          '<option value="0"' + (s.settings.focusEnabled ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'כבוי' : 'معطّل') + '</option></select></label>' +
+          '<option value="1"' + (s.settings.focusEnabled ? ' selected' : '') + '>' + esc(UI.getLang() === 'en' ? 'Enabled' : 'مفعّل') + '</option>' +
+          '<option value="0"' + (s.settings.focusEnabled ? '' : ' selected') + '>' + esc(UI.getLang() === 'en' ? 'Disabled' : 'معطّل') + '</option></select></label>' +
         '<label class="fld"><span>⚖ ' + esc(T('focus_weight')) + '</span><select id="fxW">' +
           [0, 5, 10, 15].map(function (v) {
             return '<option value="' + v + '"' + ((s.settings.focusWeight || 0) === v ? ' selected' : '') + '>' + v + '%</option>';
@@ -1176,12 +1176,12 @@
         '<p class="muted sm">' + esc(T('pin_note')) + '</p>' +
         '<h3 style="margin-top:18px">' + esc(T('reg_title')) + '</h3>' +
         '<label class="fld"><span>' + esc(T('phone')) + '</span><select id="reqPhone">' +
-          '<option value="0"' + (s.settings.requirePhone ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'לא חובה' : 'اختياري') + '</option>' +
-          '<option value="1"' + (s.settings.requirePhone ? ' selected' : '') + '>' + esc(UI.getLang() === 'he' ? 'חובה' : 'إلزامي') + '</option></select></label>' +
+          '<option value="0"' + (s.settings.requirePhone ? '' : ' selected') + '>' + esc(UI.getLang() === 'en' ? 'Optional' : 'اختياري') + '</option>' +
+          '<option value="1"' + (s.settings.requirePhone ? ' selected' : '') + '>' + esc(UI.getLang() === 'en' ? 'Required' : 'إلزامي') + '</option></select></label>' +
         '<label class="fld"><span>' + esc(T('email')) + '</span><select id="reqMail">' +
-          '<option value="0"' + (s.settings.requireEmail ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'לא חובה' : 'اختياري') + '</option>' +
-          '<option value="1"' + (s.settings.requireEmail ? ' selected' : '') + '>' + esc(UI.getLang() === 'he' ? 'חובה' : 'إلزامي') + '</option></select></label>' +
-        '<p class="muted sm">' + esc(UI.getLang() === 'he' ? 'שם מלא הוא תמיד שדה חובה למועמד.' : 'الاسم الكامل إلزامي دائماً للمرشح.') + '</p>' +
+          '<option value="0"' + (s.settings.requireEmail ? '' : ' selected') + '>' + esc(UI.getLang() === 'en' ? 'Optional' : 'اختياري') + '</option>' +
+          '<option value="1"' + (s.settings.requireEmail ? ' selected' : '') + '>' + esc(UI.getLang() === 'en' ? 'Required' : 'إلزامي') + '</option></select></label>' +
+        '<p class="muted sm">' + esc(UI.getLang() === 'en' ? 'The full name is always required for a candidate.' : 'الاسم الكامل إلزامي دائماً للمرشح.') + '</p>' +
         '<h3 style="margin-top:18px">DATA</h3>' +
         '<div class="btn-row"><button class="btn" id="expBtn">⬇ ' + esc(T('export_')) + '</button>' +
         '<button class="btn" id="impBtn">⬆ ' + esc(T('import_')) + '</button>' +
@@ -1219,7 +1219,7 @@
         var chain = API.saveSettings({ requirePhone: ss.requirePhone, requireEmail: ss.requireEmail });
         if (np) {
           if (np.length < 8) return UI.toast(LL('كلمة السر يجب أن تكون 8 أحرف على الأقل',
-                                                'הסיסמה חייבת להיות 8 תווים לפחות'), 'bad');
+                                                'The passphrase must be at least 8 characters'), 'bad');
           chain = chain.then(function () { return API.setManagerPass(np); });
           document.getElementById('pinIn').value = '';
         }
@@ -1257,12 +1257,12 @@
     };
     document.getElementById('resetBtn').onclick = function () {
       if (srv()) return UI.toast(LL('غير متاح في وضع السيرفر — البيانات مركزية.',
-                                    'לא זמין במצב שרת — הנתונים מרוכזים.'), 'bad');
+                                    'Not available in server mode — the data is centralised.'), 'bad');
       Store.reset(); UI.toast('✔'); body();
     };
     document.getElementById('wipeBtn').onclick = function () {
       if (srv()) return UI.toast(LL('غير متاح في وضع السيرفر — البيانات مركزية.',
-                                    'לא זמין במצב שרת — הנתונים מרוכזים.'), 'bad');
+                                    'Not available in server mode — the data is centralised.'), 'bad');
       Store.wipe(); UI.toast('✔'); body();
     };
   }

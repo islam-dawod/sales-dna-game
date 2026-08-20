@@ -165,11 +165,11 @@
      CUSTOMERS — skeptical | hesitant | price | busy | boss
      ============================================================ */
   var CUSTOMERS = {
-    skeptical: { ar: 'عميل غير مقتنع', he: 'לקוח סקפטי', tie: '#ef4444', icon: '😠' },
-    hesitant:  { ar: 'عميل متردّد',    he: 'לקוח מהסס',  tie: '#f59e0b', icon: '🤔' },
-    price:     { ar: 'عميل يركّز على السعر', he: 'לקוח ממוקד מחיר', tie: '#10b981', icon: '💰' },
-    busy:      { ar: 'عميل مستعجل',    he: 'לקוח ממהר',  tie: '#22d3ee', icon: '⏱' },
-    boss:      { ar: 'العميل الكبير',  he: 'הלקוח הגדול', tie: '#8b5cf6', icon: '👑' }
+    skeptical: { ar: 'عميل غير مقتنع', en: 'A sceptical customer', tie: '#ef4444', icon: '😠' },
+    hesitant:  { ar: 'عميل متردّد',    en: 'A hesitant customer',  tie: '#f59e0b', icon: '🤔' },
+    price:     { ar: 'عميل يركّز على السعر', en: 'A price-focused customer', tie: '#10b981', icon: '💰' },
+    busy:      { ar: 'عميل مستعجل',    en: 'A customer in a hurry',  tie: '#22d3ee', icon: '⏱' },
+    boss:      { ar: 'العميل الكبير',  en: 'The major customer', tie: '#8b5cf6', icon: '👑' }
   };
 
   function customer(type) {

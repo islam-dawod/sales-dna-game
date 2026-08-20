@@ -18,8 +18,8 @@
   'use strict';
   var UI = root.SDNA.UI, Art = root.SDNA.Art, Store = root.SDNA.Store;
   var esc = function (s) { return UI.esc(s); };
-  function he() { return UI.getLang() === 'he'; }
-  function L(ar, hev) { return he() ? hev : ar; }
+  function isEn() { return UI.getLang() === 'en'; }
+  function L(ar, enTxt) { return isEn() ? enTxt : ar; }
 
   /* one shared coordinate system for both images */
   var VB_W = 700, VB_H = 300;
@@ -27,10 +27,10 @@
 
   /* the four planned differences — normalised 0–1, never pixels */
   var DIFFS = [
-    { id: 'clock',   x: 450 / VB_W, y: 75 / VB_H,  r: 0.055, ar: 'عقارب الساعة',       he: 'מחוגי השעון' },
-    { id: 'crm',     x: 536 / VB_W, y: 214 / VB_H, r: 0.058, ar: 'رقم على شاشة CRM',   he: 'מספר במסך ה-CRM' },
-    { id: 'headset', x: 310 / VB_W, y: 247 / VB_H, r: 0.050, ar: 'زر صغير في السمّاعة', he: 'כפתור קטן באוזנייה' },
-    { id: 'plant',   x: 622 / VB_W, y: 100 / VB_H, r: 0.052, ar: 'ورقة في النبتة',     he: 'עלה בעציץ' }
+    { id: 'clock',   x: 450 / VB_W, y: 75 / VB_H,  r: 0.055, ar: 'عقارب الساعة',       en: 'The clock hands' },
+    { id: 'crm',     x: 536 / VB_W, y: 214 / VB_H, r: 0.058, ar: 'رقم على شاشة CRM',   en: 'A number on the CRM screen' },
+    { id: 'headset', x: 310 / VB_W, y: 247 / VB_H, r: 0.050, ar: 'زر صغير في السمّاعة', en: 'A small button on the headset' },
+    { id: 'plant',   x: 622 / VB_W, y: 100 / VB_H, r: 0.052, ar: 'ورقة في النبتة',     en: 'A leaf on the plant' }
   ];
 
   /* ============================================================
@@ -160,25 +160,41 @@
   /* ============================================================
      QUICK SCAN
      ============================================================ */
-  var NAMES = ['سمير خطيب', 'رانيا حداد', 'محمود عابد', 'ليلى نصار', 'فادي شاهين', 'دانا قاسم'];
-  var SERVICES = ['زرع أسنان', 'تقويم شفاف', 'تبييض', 'تركيبات زيركون', 'حشوات تجميلية', 'جراحة لثة'];
-  var STATUS = ['مهتم', 'يفكّر', 'ينتظر موافقة العائلة', 'يريد تقسيط'];
-  var NOTES = ['يسأل عن التقسيط', 'يفضّل التواصل بالواتساب', 'زار العيادة مرة', 'تحوّل من عميل قديم'];
+  /* the card content itself, per language — the distractors are built from
+     these same lists so a card never mixes languages */
+  var DATA = {
+    ar: {
+      names:    ['سمير خطيب', 'رانيا حداد', 'محمود عابد', 'ليلى نصار', 'فادي شاهين', 'دانا قاسم'],
+      services: ['زرع أسنان', 'تقويم شفاف', 'تبييض', 'تركيبات زيركون', 'حشوات تجميلية', 'جراحة لثة'],
+      status:   ['مهتم', 'يفكّر', 'ينتظر موافقة العائلة', 'يريد تقسيط'],
+      notes:    ['يسأل عن التقسيط', 'يفضّل التواصل بالواتساب', 'زار العيادة مرة', 'تحوّل من عميل قديم'],
+      follow:   ['اليوم', 'غداً', 'بعد يومين', 'الأسبوع القادم']
+    },
+    en: {
+      names:    ['Samir Khatib', 'Rania Haddad', 'Mahmoud Abed', 'Layla Nassar', 'Fadi Shaheen', 'Dana Qasem'],
+      services: ['Dental implant', 'Clear aligners', 'Whitening', 'Zirconia crowns', 'Cosmetic fillings', 'Gum surgery'],
+      status:   ['Interested', 'Thinking about it', 'Waiting on the family', 'Wants instalments'],
+      notes:    ['Asking about instalments', 'Prefers WhatsApp', 'Visited the clinic once', 'Referred by an old customer'],
+      follow:   ['Today', 'Tomorrow', 'In two days', 'Next week']
+    }
+  };
+  function D() { return isEn() ? DATA.en : DATA.ar; }
 
   function card(round, rnd) {
     var price = (8 + Math.floor(rnd() * 26)) * 1000;
     var calls = 1 + Math.floor(rnd() * 5);
     var hour = 9 + Math.floor(rnd() * 10);
     var min = rnd() > .5 ? '30' : '00';
+    var d = D();
     var fields = [
-      { k: 'name',    ar: 'الاسم',             he: 'שם',         v: NAMES[Math.floor(rnd() * NAMES.length)] },
-      { k: 'service', ar: 'الخدمة المطلوبة',   he: 'שירות',      v: SERVICES[Math.floor(rnd() * SERVICES.length)] },
-      { k: 'price',   ar: 'السعر المعروض',     he: 'מחיר',       v: price.toLocaleString('en-US') },
-      { k: 'calls',   ar: 'عدد الاتصالات',     he: 'מספר שיחות', v: String(calls) },
-      { k: 'time',    ar: 'وقت مناسب للاتصال', he: 'זמן מועדף',  v: hour + ':' + min },
-      { k: 'status',  ar: 'الحالة',            he: 'סטטוס',      v: STATUS[Math.floor(rnd() * STATUS.length)] },
-      { k: 'follow',  ar: 'موعد المتابعة',     he: 'מועד מעקב',  v: ['اليوم', 'غداً', 'بعد يومين', 'الأسبوع القادم'][Math.floor(rnd() * 4)] },
-      { k: 'note',    ar: 'ملاحظة',            he: 'הערה',       v: NOTES[Math.floor(rnd() * NOTES.length)] }
+      { k: 'name',    ar: 'الاسم',             en: 'Name',         v: d.names[Math.floor(rnd() * d.names.length)] },
+      { k: 'service', ar: 'الخدمة المطلوبة',   en: 'Service requested',      v: d.services[Math.floor(rnd() * d.services.length)] },
+      { k: 'price',   ar: 'السعر المعروض',     en: 'Price quoted',       v: price.toLocaleString('en-US') },
+      { k: 'calls',   ar: 'عدد الاتصالات',     en: 'Number of calls', v: String(calls) },
+      { k: 'time',    ar: 'وقت مناسب للاتصال', en: 'Best time to call',  v: hour + ':' + min },
+      { k: 'status',  ar: 'الحالة',            en: 'Status',      v: d.status[Math.floor(rnd() * d.status.length)] },
+      { k: 'follow',  ar: 'موعد المتابعة',     en: 'Follow-up date',  v: d.follow[Math.floor(rnd() * d.follow.length)] },
+      { k: 'note',    ar: 'ملاحظة',            en: 'Note',       v: d.notes[Math.floor(rnd() * d.notes.length)] }
     ];
     return { fields: fields.slice(0, [5, 6, 7][round - 1]), secs: [8, 7, 6][round - 1], price: price, calls: calls };
   }
@@ -192,13 +208,13 @@
     }
     return picked.map(function (f) {
       var qtext = {
-        service: L('ما هي الخدمة التي يريدها العميل؟', 'איזה שירות הלקוח רוצה?'),
-        price:   L('ما هو السعر المعروض؟', 'מה המחיר שהוצע?'),
-        calls:   L('كم مرة تم الاتصال بالعميل؟', 'כמה פעמים התקשרו ללקוח?'),
-        time:    L('ما هو الوقت المناسب للاتصال؟', 'מה הזמן המועדף לשיחה?'),
-        status:  L('ما هي حالة العميل؟', 'מה סטטוס הלקוח?'),
-        follow:  L('ما هو موعد المتابعة؟', 'מה מועד המעקב?'),
-        note:    L('ما هي الملاحظة المسجّلة؟', 'מה ההערה שנרשמה?')
+        service: L('ما هي الخدمة التي يريدها العميل؟', 'Which service does the customer want?'),
+        price:   L('ما هو السعر المعروض؟', 'What price was quoted?'),
+        calls:   L('كم مرة تم الاتصال بالعميل؟', 'How many times was the customer called?'),
+        time:    L('ما هو الوقت المناسب للاتصال؟', 'What is the best time to call?'),
+        status:  L('ما هي حالة العميل؟', 'What is the customer status?'),
+        follow:  L('ما هو موعد المتابعة؟', 'When is the follow-up?'),
+        note:    L('ما هي الملاحظة المسجّلة؟', 'What note was recorded?')
       }[f.k];
       var o = distractors(f, c, rnd);
       return { q: qtext, opts: o.list, correct: o.correct, field: f.k };
@@ -285,14 +301,14 @@
 
     host.innerHTML =
       '<div class="fx-top"><div class="fx-title">👁 SPOT THE DIFFERENCE' + (debug ? ' · DEBUG' : '') + '</div>' +
-        '<div class="fx-stat"><b id="fxFound">0</b>/' + DIFFS.length + ' ' + esc(L('اختلافات', 'הבדלים')) + '</div>' +
+        '<div class="fx-stat"><b id="fxFound">0</b>/' + DIFFS.length + ' ' + esc(L('اختلافات', 'differences')) + '</div>' +
         '<div class="fx-timer" id="fxTimer" dir="ltr">00:' + String(limit).padStart(2, '0') + '</div></div>' +
       '<div class="fx-bar"><i id="fxBar" style="width:100%"></i></div>' +
       '<div class="spot-wrap">' +
         pane('a') + pane('b') +
       '</div>' +
       '<div class="fx-hint muted sm" id="fxHint">' +
-        esc(L('اضغط على المكان الذي تلاحظ فيه اختلافاً', 'לחץ על המקום שבו זיהית הבדל')) + '</div>';
+        esc(L('اضغط على المكان الذي تلاحظ فيه اختلافاً', 'Click where you notice a difference')) + '</div>';
 
     function pane(v) {
       return '<div class="spot-pane" data-v="' + v + '">' + scene(v, debug) +
@@ -420,10 +436,10 @@
         '<div class="fin-card pop">' +
           '<div class="unlock pop">🔓 <b>BONUS LEVEL UNLOCKED</b></div>' +
           '<h1>⚡ ONE LAST CHALLENGE</h1>' +
-          '<p class="big">' + esc(L('جاهز لاختبار تركيزك؟', 'מוכן לבדוק את הריכוז שלך?')) + '</p>' +
+          '<p class="big">' + esc(L('جاهز لاختبار تركيزك؟', 'Ready to test your focus?')) + '</p>' +
           '<p class="muted">' + esc(L('تحديان قصيران · حوالي دقيقة ونصف · الوقت يبدأ عند الضغط',
-                                      'שני אתגרים קצרים · כדקה וחצי · הזמן מתחיל בלחיצה')) + '</p>' +
-          '<button class="btn btn-primary btn-xl" id="fxStart">' + esc(L('ابدأ التحدي', 'התחל את האתגר')) + '</button>' +
+                                      'Two short challenges · about a minute and a half · the clock starts when you click')) + '</p>' +
+          '<button class="btn btn-primary btn-xl" id="fxStart">' + esc(L('ابدأ التحدي', 'Start the challenge')) + '</button>' +
         '</div></div>';
       document.getElementById('fxStart').onclick = function () { root.SDNA.Game.Sound.unlock(); spotIntro(); };
     }
@@ -434,10 +450,10 @@
           '<div class="fx-badge">GAME 1 / 2</div>' +
           '<h1>👁 SPOT THE DIFFERENCE</h1>' +
           '<p class="big">' + esc(L('هناك 4 اختلافات بين الصورتين. اكتشفها قبل انتهاء الوقت.',
-                                    'יש 4 הבדלים בין התמונות. מצא אותם לפני שהזמן נגמר.')) + '</p>' +
+                                    'There are 4 differences between the two pictures. Find them before the time runs out.')) + '</p>' +
           '<p class="muted sm">' + esc(L('الاختلافات صغيرة جداً · اضغط بدقة · الضغط الخاطئ يُحتسب',
-                                         'ההבדלים קטנים מאוד · לחץ בדיוק · לחיצה שגויה נרשמת')) + '</p>' +
-          '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ · 45 ثانية', 'התחל · 45 שניות')) + '</button>' +
+                                         'The differences are very small · click precisely · wrong clicks are counted')) + '</p>' +
+          '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ · 45 ثانية', 'Start · 45 seconds')) + '</button>' +
         '</div></div>';
       document.getElementById('go').onclick = function () {
         app.innerHTML = '<div class="screen focus-game" id="spotHost"></div>';
@@ -454,10 +470,10 @@
           '<div class="fx-badge">GAME 2 / 2</div>' +
           '<h1>⚡ QUICK SCAN</h1>' +
           '<p class="big">' + esc(L('ستظهر بطاقة عميل لثوانٍ قليلة ثم تختفي. ركّز جيداً على التفاصيل.',
-                                    'כרטיס לקוח יופיע לשניות ואז ייעלם. התרכז בפרטים.')) + '</p>' +
+                                    'A customer card will appear for a few seconds, then disappear. Concentrate on the details.')) + '</p>' +
           '<p class="muted sm">' + esc(L('3 جولات · الكرت يصبح أصعب في كل جولة',
-                                         '3 סבבים · הכרטיס נעשה קשה יותר בכל סבב')) + '</p>' +
-          '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ', 'התחל')) + '</button>' +
+                                         '3 rounds · the card gets harder each round')) + '</p>' +
+          '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ', 'Start')) + '</button>' +
         '</div></div>';
       document.getElementById('go').onclick = function () { round(1); };
     }
@@ -473,7 +489,7 @@
           '<div class="fx-top"><div class="fx-title">⚡ QUICK SCAN</div>' +
             '<div class="fx-stat">🔥 ROUND ' + r + '/3</div>' +
             '<div class="fx-timer" dir="ltr">00:0' + c.secs + '</div></div>' +
-          '<div class="scan-say">' + esc(L('ركّز جيداً… ستختفي البطاقة!', 'התרכז… הכרטיס ייעלם!')) + '</div>' +
+          '<div class="scan-say">' + esc(L('ركّز جيداً… ستختفي البطاقة!', 'Concentrate… the card is about to vanish!')) + '</div>' +
           '<div class="count-big" id="cnt">3</div></div>';
         var iv = setInterval(function () {
           n--;
@@ -490,7 +506,7 @@
           '<div class="fx-bar"><i id="fxBar" style="width:100%"></i></div>' +
           '<div class="cust-card pop"><div class="cc-head">CUSTOMER CARD</div>' +
             c.fields.map(function (f) {
-              return '<div class="cc-row"><span>' + esc(he() ? f.he : f.ar) + '</span><b>' + esc(f.v) + '</b></div>';
+              return '<div class="cc-row"><span>' + esc(isEn() ? f.en : f.ar) + '</span><b>' + esc(f.v) + '</b></div>';
             }).join('') + '</div></div>';
         var t0 = performance.now(), bar = document.getElementById('fxBar'), tm = document.getElementById('fxTimer');
         var iv = setInterval(function () {
@@ -508,8 +524,8 @@
         app.innerHTML = '<div class="screen focus-game">' +
           '<div class="fx-top"><div class="fx-title">⚡ QUICK SCAN</div>' +
             '<div class="fx-stat">🔥 ROUND ' + r + '/3</div>' +
-            '<div class="fx-stat">' + esc(L('سؤال', 'שאלה')) + ' ' + (qi + 1) + '/' + qs.length + '</div></div>' +
-          '<div class="scan-q pop">💨 ' + esc(L('اختفت البطاقة!', 'הכרטיס נעלם!')) + '</div>' +
+            '<div class="fx-stat">' + esc(L('سؤال', 'Question')) + ' ' + (qi + 1) + '/' + qs.length + '</div></div>' +
+          '<div class="scan-q pop">💨 ' + esc(L('اختفت البطاقة!', 'The card is gone!')) + '</div>' +
           '<h2 class="q-text">' + esc(q.q) + '</h2>' +
           '<div class="opts scan-opts">' + q.opts.map(function (o, k) {
             return '<button class="opt" data-k="' + k + '"><span class="opt-ic">' + 'ABCD'[k] + '</span>' +
@@ -549,9 +565,9 @@
         '<div class="fx-badge">CALIBRATION</div>' +
         '<h1>🎯 TEST GAME</h1>' +
         '<p class="big">' + esc(L('اضغط على كل الاختلافات الأربعة للتحقق من دقة مواقعها قبل النشر.',
-                                  'לחץ על כל ארבעת ההבדלים כדי לאמת את מיקומם לפני פרסום.')) + '</p>' +
-        '<p class="muted sm">' + esc(L('وضع المطوّر: أماكن الضغط ظاهرة', 'מצב מפתח: אזורי הלחיצה מוצגים')) + '</p>' +
-        '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ الاختبار', 'התחל בדיקה')) + '</button>' +
+                                  'Click all four differences to verify their positions before publishing.')) + '</p>' +
+        '<p class="muted sm">' + esc(L('وضع المطوّر: أماكن الضغط ظاهرة', 'Developer mode: the hit areas are visible')) + '</p>' +
+        '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ الاختبار', 'Start the test')) + '</button>' +
       '</div></div>';
     document.getElementById('go').onclick = function () {
       app.innerHTML = '<div class="screen focus-game" id="spotHost"></div>';
@@ -568,15 +584,15 @@
             '<h1>' + r.found + '/' + DIFFS.length + (ok ? ' VALIDATED' : ' — NOT VALIDATED') + '</h1>' +
             '<div class="focus-raw">' + r.detections.map(function (d, i) {
               var meta = DIFFS.filter(function (x) { return x.id === d.id; })[0];
-              return '<div class="fraw"><small>' + (i + 1) + ' · ' + esc(he() ? meta.he : meta.ar) + '</small><b>' + d.t + 's</b></div>';
+              return '<div class="fraw"><small>' + (i + 1) + ' · ' + esc(isEn() ? meta.en : meta.ar) + '</small><b>' + d.t + 's</b></div>';
             }).join('') + '</div>' +
             '<p class="' + (ok ? 'muted' : 'warn') + '">' + esc(ok
               ? L('كل أزرار الاختلافات في مواقعها الصحيحة — المشهد جاهز للنشر.',
-                  'כל אזורי ההבדלים במקום — הסצנה מאושרת לפרסום.')
+                  'Every difference hit area is in the right place — the scene is cleared for publishing.')
               : L('لم يتم التحقق من كل الاختلافات. لا تنشر المشهد قبل 4/4.',
-                  'לא כל ההבדלים אומתו. אין לפרסם לפני 4/4.')) + '</p>' +
-            '<p class="muted sm">' + esc(L('ضغطات خاطئة أثناء الاختبار', 'לחיצות שגויות בבדיקה')) + ': ' + r.wrong + '</p>' +
-            '<button class="btn btn-primary" id="back">' + esc(L('رجوع', 'חזרה')) + '</button>' +
+                  'Not every difference was verified. Do not publish the scene before 4/4.')) + '</p>' +
+            '<p class="muted sm">' + esc(L('ضغطات خاطئة أثناء الاختبار', 'Wrong clicks during the test')) + ': ' + r.wrong + '</p>' +
+            '<button class="btn btn-primary" id="back">' + esc(L('رجوع', 'Back')) + '</button>' +
             '</div></div>';
           document.getElementById('back').onclick = function () { if (done) done(s.settings.spotValidated); };
         }
@@ -589,10 +605,10 @@
     scene: scene, DIFFS: DIFFS, VB: { w: VB_W, h: VB_H }, MIN_HIT_PX: MIN_HIT_PX,
     contentBox: contentBox, normalise: normalise, hitTest: hitTest,
     SUB: {
-      visual:   { ar: 'الانتباه البصري',       he: 'קשב חזותי',        en: 'Visual Attention' },
-      speed:    { ar: 'سرعة المعالجة',         he: 'מהירות עיבוד',     en: 'Processing Speed' },
-      accuracy: { ar: 'الدقة',                 he: 'דיוק',             en: 'Accuracy' },
-      recall:   { ar: 'استيعاب معلومات سريع',  he: 'קליטת מידע מהירה', en: 'Quick Information Recall' }
+      visual:   { ar: 'الانتباه البصري',        en: 'Visual Attention' },
+      speed:    { ar: 'سرعة المعالجة',     en: 'Processing Speed' },
+      accuracy: { ar: 'الدقة',             en: 'Accuracy' },
+      recall:   { ar: 'استيعاب معلومات سريع', en: 'Quick Information Recall' }
     }
   };
 })(window);

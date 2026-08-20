@@ -267,10 +267,10 @@
     document.getElementById('world').innerHTML = Art.city();
     UI.setLang(s.settings.lang || 'ar');
     var lb = document.getElementById('langBtn');
-    lb.textContent = UI.getLang() === 'ar' ? 'עברית' : 'عربي';
+    lb.textContent = UI.getLang() === 'ar' ? 'English' : 'عربي';
     lb.onclick = function () {
-      UI.setLang(UI.getLang() === 'ar' ? 'he' : 'ar');
-      lb.textContent = UI.getLang() === 'ar' ? 'עברית' : 'عربي';
+      UI.setLang(UI.getLang() === 'ar' ? 'en' : 'ar');
+      lb.textContent = UI.getLang() === 'ar' ? 'English' : 'عربي';
       go(route === 'manager' ? 'manager' : route === 'splash' ? 'splash' : 'home');
     };
     document.getElementById('homeBtn').onclick = function () { go('splash'); };

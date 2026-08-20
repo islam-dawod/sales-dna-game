@@ -44,14 +44,14 @@
   })();
 
   var BADGES = {
-    tower:  { icon: '🎯', ar: 'صائد الأهداف',  he: 'ציד היעדים' },
-    arena:  { icon: '🔥', ar: 'ناجٍ من الرفض',  he: 'שורד דחיות' },
-    hq:     { icon: '⏱', ar: 'آلة منضبطة',     he: 'מכונת משמעת' },
-    lab:    { icon: '🧠', ar: 'متعلّم سريع',    he: 'לומד מהיר' },
-    trust:  { icon: '🛡', ar: 'صاحب مسؤولية',  he: 'בעל אחריות' },
-    street: { icon: '⚡', ar: 'ثابت تحت الضغط', he: 'יציב בלחץ' },
-    battle: { icon: '💼', ar: 'مُغلق صفقات',    he: 'סוגר עסקאות' },
-    final:  { icon: '🏆', ar: 'بطل المبيعات',   he: 'אלוף המכירות' }
+    tower:  { icon: '🎯', ar: 'صائد الأهداف',  en: 'Target Hunter' },
+    arena:  { icon: '🔥', ar: 'ناجٍ من الرفض',  en: 'Rejection Survivor' },
+    hq:     { icon: '⏱', ar: 'آلة منضبطة',     en: 'Discipline Machine' },
+    lab:    { icon: '🧠', ar: 'متعلّم سريع',    en: 'Fast Learner' },
+    trust:  { icon: '🛡', ar: 'صاحب مسؤولية',  en: 'Owns the Outcome' },
+    street: { icon: '⚡', ar: 'ثابت تحت الضغط', en: 'Steady Under Pressure' },
+    battle: { icon: '💼', ar: 'مُغلق صفقات',    en: 'Deal Closer' },
+    final:  { icon: '🏆', ar: 'بطل المبيعات',   en: 'Sales Champion' }
   };
 
   /* ---------------- model abstraction ---------------- */
@@ -102,7 +102,7 @@
     var m = meta(S.blockIdx);
     return '<div class="hud">' +
       '<div class="hud-zone"><span class="hud-dot" style="background:' + m.color + '"></span>' +
-        '<b>' + esc(m.code) + '</b><small>' + esc(UI.getLang() === 'he' ? m.he : m.ar) + '</small></div>' +
+        '<b>' + esc(m.code) + '</b><small>' + esc(UI.nm(m)) + '</small></div>' +
       '<div class="hud-right">' +
         '<div class="hud-xp" dir="ltr">' + Art.icon('coin') + '<b id="xpNow">' + S.xp + '</b></div>' +
         '<button class="hud-btn" id="sndBtn" title="sound">' + (Store.get().settings.sound ? '🔊' : '🔇') + '</button>' +
@@ -133,7 +133,7 @@
               (st === 'locked' ? '<span class="zn-lock">🔒</span>' : '') +
               (st === 'done' ? '<span class="zn-check">✓</span>' : '') + '</div>' +
             '<div class="zn-info"><b>' + (isNC() ? 'LEVEL ' + m.n + ' · ' : '') + esc(m.code) + '</b>' +
-              '<span>' + esc(lang === 'he' ? m.he : m.ar) + '</span>' +
+              '<span>' + esc(UI.nm(m)) + '</span>' +
               '<i>' + b.qs.length + ' ' + esc(isNC() ? T('challenges') : T('q_of')) + '</i></div>' +
             (st === 'active' ? '<div class="zn-hero">' + Art.hero({ pose: 'idle', expr: 'idle' }) + '</div>' : '') +
             '</div>';
@@ -158,9 +158,9 @@
         '<div class="zi-badge">' + (isNC() ? 'LEVEL ' + m.n + ' / 5' : 'ZONE ' + m.n) + '</div>' +
         '<div class="zi-emblem pop">' + Art.zoneEmblem(isNC() ? m.key : S.plan[S.blockIdx].zone, m.color) + '</div>' +
         '<h1 class="zi-title">' + esc(m.code) + '</h1>' +
-        '<h3 class="zi-sub">' + esc(UI.getLang() === 'he' ? m.he : m.ar) + '</h3>' +
+        '<h3 class="zi-sub">' + esc(UI.nm(m)) + '</h3>' +
         '<div class="mentor-bubble"><span class="mentor-dot" style="--c:' + ch.color + '">' + (ch.icon || '★') + '</span>' +
-          '<div><b>' + esc(ch.ar) + '</b><span>' + esc(hello + ch.line_ar) + '</span></div></div>' +
+          '<div><b>' + esc(UI.nm(ch)) + '</b><span>' + esc(hello + (UI.getLang() === 'en' ? ch.line_en : ch.line_ar)) + '</span></div></div>' +
         '<button class="btn btn-primary btn-xl" id="goQ">' + esc(T('enter')) + '</button>' +
       '</div></div>';
     bindHud();
@@ -188,17 +188,17 @@
           Art.hero({ pose: who ? 'phone' : 'idle', expr: 'focus' }) + '</div>' +
         (who ? '<div class="actor cust-actor">' +
             (who === 'coach' ? Art.coach() : Art.customer(who)) +
-            '<span class="cust-tag">' + (who === 'coach' ? '🎓 ' + esc(UI.getLang() === 'he' ? 'המנהל' : 'المدير')
+            '<span class="cust-tag">' + (who === 'coach' ? '🎓 ' + esc(UI.getLang() === 'en' ? 'The manager' : 'المدير')
               : (Art.CUSTOMERS[who] ? Art.CUSTOMERS[who].icon + ' ' + esc(Art.CUSTOMERS[who].ar) : '')) + '</span>' +
           '</div>' : '') +
-        (q.line ? '<div class="bubble cust-bubble fade-up">' + esc(q.line) + '</div>' : '') +
+        (q.line ? '<div class="bubble cust-bubble fade-up">' + esc(UI.qt(q, 'line')) + '</div>' : '') +
       '</div>' +
       '<div class="panel">' +
-        '<h2 class="q-text fade-up">' + esc(q.q) + '</h2>' +
+        '<h2 class="q-text fade-up">' + esc(UI.qt(q, 'q')) + '</h2>' +
         '<div class="opts">' + opts.map(function (o, k) {
           return '<button class="opt fade-up" style="animation-delay:' + (0.05 * k + 0.08) + 's" data-i="' + o.i + '">' +
             '<span class="opt-ic">' + ANSWER_ICONS[k] + '</span>' +
-            '<span class="opt-t">' + esc(o.o.t) + '</span>' +
+            '<span class="opt-t">' + esc(UI.qt(o.o, 't')) + '</span>' +
             '<span class="opt-key">' + 'ABCD'[k] + '</span></button>';
         }).join('') + '</div>' +
       '</div></div>';
@@ -269,7 +269,7 @@
           '<div><b>' + S.badges.length + '</b><small>BADGES</small></div>' +
         '</div>' +
         (badge ? '<div class="badge-earned pop"><span>' + badge.icon + '</span>' +
-          esc(UI.getLang() === 'he' ? badge.he : badge.ar) + '</div>' : '') +
+          esc(UI.nm(badge)) + '</div>' : '') +
         (nextM ? '<div class="next-zone">NEXT: <b style="color:' + nextM.color + '">' + esc(nextM.code) + '</b></div>' : '') +
         '<button class="btn btn-primary btn-xl" id="nextZ">' + esc(last ? T('finish') : T('continue_')) + '</button>' +
       '</div></div>';
@@ -351,8 +351,8 @@
         '<h1>' + esc(T('challenge_done')) + '</h1>' +
         '<p class="muted">' + esc(T('thanks_emp')) + '</p>' +
         '<div class="char-card"><div class="cc-emoji">' + ch.emoji + '</div>' +
-          '<div><small>YOUR SALES STYLE</small><b>' + esc(ch.key) + ' · ' + esc(ch.ar) + '</b>' +
-          '<span>' + esc(ch.desc_ar) + '</span></div></div>' +
+          '<div><small>YOUR SALES STYLE</small><b>' + esc(ch.key) + ' · ' + esc(UI.nm(ch)) + '</b>' +
+          '<span>' + esc(UI.getLang() === 'en' ? ch.desc_en : ch.desc_ar) + '</span></div></div>' +
         '<div class="zd-stats"><div><b>' + S.xp + '</b><small>XP</small></div>' +
           '<div><b>' + S.badges.length + '</b><small>BADGES</small></div>' +
           '<div><b>' + S.answers.length + '</b><small>' + esc(T('q_of')) + '</small></div></div>' +
@@ -375,7 +375,7 @@
         '<p class="muted">' + esc(T('thanks_emp')) + '</p>' +
         (top ? '<div class="char-card"><div class="cc-emoji">' + NC.DIMS[top].icon + '</div>' +
           '<div><small>YOUR STRONGEST SIDE</small><b>' +
-          esc(UI.getLang() === 'he' ? NC.DIMS[top].he : NC.DIMS[top].ar) + '</b>' +
+          esc(UI.nm(NC.DIMS[top])) + '</b>' +
           '<span>' + esc(T('thanks_emp_quick')) + '</span></div></div>' : '') +
         '<div class="zd-stats"><div><b>' + S.xp + '</b><small>XP</small></div>' +
           '<div><b>' + S.answers.length + '</b><small>' + esc(T('q_of')) + '</small></div></div>' +

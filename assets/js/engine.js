@@ -43,11 +43,11 @@
 
   /* ---------- sales character (cosmetic) ---------- */
   var CHARS = [
-    { key: 'HUNTER',  need: ['target', 'persistence'],       ar: 'الصيّاد',     he: 'הצייד',     emoji: '🎯', desc_ar: 'يلاحق الهدف بلا توقف، أفضل نتائجه تحت ضغط الأرقام.' },
-    { key: 'CLOSER',  need: ['target', 'resilience'],        ar: 'المُغلِق',    he: 'הסוגר',     emoji: '⚡', desc_ar: 'قوي في اللحظات الحاسمة، لا يتراجع أمام الاعتراضات.' },
-    { key: 'GRINDER', need: ['discipline', 'persistence'],   ar: 'المثابر',     he: 'המתמיד',    emoji: '⛏', desc_ar: 'يكسب بالتكرار والانضباط اليومي وليس بالحظ.' },
-    { key: 'BUILDER', need: ['commitment', 'accountability'],ar: 'الباني',      he: 'הבנאי',     emoji: '🏗', desc_ar: 'يبني علاقات ونتائج طويلة المدى ويتحمّل المسؤولية.' },
-    { key: 'STUDENT', need: ['learning', 'coachability'],    ar: 'المتعلّم',    he: 'הלומד',     emoji: '🧠', desc_ar: 'يتحسّن بسرعة، يستفيد من كل ملاحظة ويطوّر أسلوبه.' }
+    { key: 'HUNTER',  need: ['target', 'persistence'],       ar: 'الصيّاد',     en: 'The Hunter',     emoji: '🎯', desc_ar: 'يلاحق الهدف بلا توقف، أفضل نتائجه تحت ضغط الأرقام.', desc_en: 'Chases the target without pause, and does their best work under the pressure of numbers.' },
+    { key: 'CLOSER',  need: ['target', 'resilience'],        ar: 'المُغلِق',    en: 'The Closer',     emoji: '⚡', desc_ar: 'قوي في اللحظات الحاسمة، لا يتراجع أمام الاعتراضات.', desc_en: 'Strong in the decisive moments, does not retreat in the face of objections.' },
+    { key: 'GRINDER', need: ['discipline', 'persistence'],   ar: 'المثابر',     en: 'The Grinder',    emoji: '⛏', desc_ar: 'يكسب بالتكرار والانضباط اليومي وليس بالحظ.', desc_en: 'Wins through repetition and daily discipline, not luck.' },
+    { key: 'BUILDER', need: ['commitment', 'accountability'],ar: 'الباني',      en: 'The Builder',     emoji: '🏗', desc_ar: 'يبني علاقات ونتائج طويلة المدى ويتحمّل المسؤولية.', desc_en: 'Builds long-term relationships and results, and owns the outcome.' },
+    { key: 'STUDENT', need: ['learning', 'coachability'],    ar: 'المتعلّم',    en: 'The Student',     emoji: '🧠', desc_ar: 'يتحسّن بسرعة، يستفيد من كل ملاحظة ويطوّر أسلوبه.', desc_en: 'Improves quickly, takes something from every piece of feedback and develops their approach.' }
   ];
   function character(d) {
     var best = CHARS[0], bs = -1;
@@ -161,18 +161,18 @@
 
   /* ---------- flags & signals ---------- */
   var FLAG_META = {
-    study:       { ar: 'دراسة حالية',              he: 'לימודים פעילים',        sev: 2 },
-    study_plan:  { ar: 'خطة دراسة قادمة',          he: 'תוכנית לימודים עתידית', sev: 2 },
-    schedule:    { ar: 'تعارض في ساعات العمل',     he: 'קונפליקט בשעות עבודה',  sev: 3 },
-    second_job:  { ar: 'عمل/مشروع آخر',            he: 'עבודה נוספת',           sev: 2 },
-    commute:     { ar: 'صعوبة وصول/مواصلات',       he: 'קושי בהגעה',            sev: 1 },
-    stability:   { ar: 'تنقّل وظيفي متكرر',        he: 'חוסר יציבות תעסוקתית',  sev: 2 },
-    low_persistence:   { ar: 'إصرار منخفض',         he: 'התמדה נמוכה',           sev: 3 },
-    low_accountability:{ ar: 'مسؤولية منخفضة',      he: 'אחריות נמוכה',          sev: 3 },
-    low_discipline:    { ar: 'انضباط منخفض',        he: 'משמעת נמוכה',           sev: 2 },
-    low_coachability:  { ar: 'صعوبة في تقبّل التوجيه', he: 'קושי בקבלת הכוונה',  sev: 2 },
-    low_target:        { ar: 'دافع منخفض نحو الهدف', he: 'דחף נמוך ליעד',        sev: 3 },
-    inconsistency:     { ar: 'تناقض في الإجابات',   he: 'חוסר עקביות בתשובות',   sev: 3 }
+    study:       { ar: 'دراسة حالية',              en: 'Currently studying',        sev: 2 },
+    study_plan:  { ar: 'خطة دراسة قادمة',          en: 'Study planned ahead', sev: 2 },
+    schedule:    { ar: 'تعارض في ساعات العمل',     en: 'Clash with working hours',  sev: 3 },
+    second_job:  { ar: 'عمل/مشروع آخر',            en: 'Another job or project',           sev: 2 },
+    commute:     { ar: 'صعوبة وصول/مواصلات',       en: 'Difficulty getting to work',            sev: 1 },
+    stability:   { ar: 'تنقّل وظيفي متكرر',        en: 'Frequent job changes',  sev: 2 },
+    low_persistence:   { ar: 'إصرار منخفض',         en: 'Low persistence',           sev: 3 },
+    low_accountability:{ ar: 'مسؤولية منخفضة',      en: 'Low accountability',          sev: 3 },
+    low_discipline:    { ar: 'انضباط منخفض',        en: 'Low discipline',           sev: 2 },
+    low_coachability:  { ar: 'صعوبة في تقبّل التوجيه', en: 'Struggles to take direction',  sev: 2 },
+    low_target:        { ar: 'دافع منخفض نحو الهدف', en: 'Low drive towards the target',        sev: 3 },
+    inconsistency:     { ar: 'تناقض في الإجابات',   en: 'Inconsistent answers',   sev: 3 }
   };
 
   function flags(answers, d, cons) {
@@ -183,21 +183,21 @@
     });
     var out = [];
     Object.keys(counts).forEach(function (k) {
-      if (FLAG_META[k]) out.push({ key: k, n: counts[k], sev: FLAG_META[k].sev, ar: FLAG_META[k].ar, he: FLAG_META[k].he });
+      if (FLAG_META[k]) out.push({ key: k, n: counts[k], sev: FLAG_META[k].sev, ar: FLAG_META[k].ar, en: FLAG_META[k].en });
     });
     var lowMap = { persistence: 'low_persistence', accountability: 'low_accountability', discipline: 'low_discipline', coachability: 'low_coachability', target: 'low_target' };
     Object.keys(lowMap).forEach(function (t) {
       if (d.traits[t] != null && d.traits[t] < 62) {
         var k = lowMap[t];
-        out.push({ key: k, n: 1, sev: FLAG_META[k].sev, ar: FLAG_META[k].ar, he: FLAG_META[k].he, val: d.traits[t] });
+        out.push({ key: k, n: 1, sev: FLAG_META[k].sev, ar: FLAG_META[k].ar, en: FLAG_META[k].en, val: d.traits[t] });
       }
     });
     if (cons && cons.score != null && cons.score < 70) {
-      out.push({ key: 'inconsistency', n: 1, sev: 3, ar: FLAG_META.inconsistency.ar, he: FLAG_META.inconsistency.he, val: cons.score });
+      out.push({ key: 'inconsistency', n: 1, sev: 3, ar: FLAG_META.inconsistency.ar, en: FLAG_META.inconsistency.en, val: cons.score });
     }
     // combined risk: study/plan + schedule conflict
     if (counts.schedule && (counts.study || counts.study_plan)) {
-      out.push({ key: 'schedule', n: counts.schedule, sev: 3, ar: 'خطر جدولة مرتفع (دراسة + ساعات)', he: 'סיכון תזמון גבוה (לימודים + שעות)' });
+      out.push({ key: 'schedule', n: counts.schedule, sev: 3, ar: 'خطر جدولة مرتفع (دراسة + ساعات)', en: 'High scheduling risk (study + hours)' });
     }
     var seen = {};
     return out.filter(function (f) { if (seen[f.key + f.ar]) return false; seen[f.key + f.ar] = 1; return true; })
@@ -207,7 +207,7 @@
   function signals(d) {
     return TK.filter(function (t) { return d.traits[t] != null && d.traits[t] >= 84; })
       .sort(function (a, b) { return d.traits[b] - d.traits[a]; })
-      .map(function (t) { return { key: t, val: d.traits[t], ar: Q.TRAITS[t].ar, he: Q.TRAITS[t].he, icon: Q.TRAITS[t].icon }; });
+      .map(function (t) { return { key: t, val: d.traits[t], ar: Q.TRAITS[t].ar, en: Q.TRAITS[t].en, icon: Q.TRAITS[t].icon }; });
   }
 
   /* ---------- similar employees ---------- */
@@ -267,21 +267,21 @@
 
   /* ---------- manager summary (rule-based generator) ---------- */
   function summary(d, m, fl, cons, lang) {
-    var he = lang === 'he';
+    var en = lang === 'en';
     var sorted = TK.filter(function (t) { return d.traits[t] != null; })
                    .sort(function (a, b) { return d.traits[b] - d.traits[a]; });
     var top = sorted.slice(0, 3), weak = sorted.slice(-2).reverse();
-    var nm = function (t) { return he ? Q.TRAITS[t].he : Q.TRAITS[t].ar; };
+    var nm = function (t) { return en ? Q.TRAITS[t].en : Q.TRAITS[t].ar; };
     var band = m.band;
     var p = [];
-    if (he) {
-      p.push('התאמה כוללת ' + m.match + '% (' + (band === 'high' ? 'התאמה גבוהה' : band === 'mid' ? 'התאמה בינונית' : 'התאמה נמוכה') + ')' +
-             (m.simStrong != null ? ', דמיון לעובדים החזקים ' + m.simStrong + '%.' : '.'));
-      p.push('נקודות חוזק בולטות: ' + top.map(function (t) { return nm(t) + ' (' + d.traits[t] + ')'; }).join(', ') + '.');
-      p.push('נדרשת בדיקה נוספת ב: ' + weak.map(function (t) { return nm(t) + ' (' + d.traits[t] + ')'; }).join(', ') + '.');
-      if (cons && cons.score != null) p.push('עקביות תשובות: ' + cons.score + '%' + (cons.score < 70 ? ' — קיימים פערים בין שאלות מקבילות, מומלץ לברר בראיון.' : '.'));
-      if (fl.length) p.push('דגלים לתשומת לב: ' + fl.slice(0, 4).map(function (f) { return f.he; }).join(', ') + '.');
-      p.push(band === 'high' ? 'המלצה: להעביר לראיון מובנה.' : band === 'mid' ? 'המלצה: ראיון עם דגש על הנקודות החלשות שצוינו.' : 'המלצה: התאמה נמוכה לפרופיל המצליח — החלטה ידנית של המנהל.');
+    if (en) {
+      p.push('Overall match ' + m.match + '% (' + (band === 'high' ? 'high match' : band === 'mid' ? 'medium match' : 'low match') + ')' +
+             (m.simStrong != null ? ', similarity to the strong employees ' + m.simStrong + '%.' : '.'));
+      p.push('Standout strengths: ' + top.map(function (t) { return nm(t) + ' (' + d.traits[t] + ')'; }).join(', ') + '.');
+      p.push('Needs further checking in: ' + weak.map(function (t) { return nm(t) + ' (' + d.traits[t] + ')'; }).join(', ') + '.');
+      if (cons && cons.score != null) p.push('Answer consistency: ' + cons.score + '%' + (cons.score < 70 ? ' — there are gaps between parallel questions, worth clarifying in the interview.' : '.'));
+      if (fl.length) p.push('Flags to note: ' + fl.slice(0, 4).map(function (f) { return f.en; }).join(', ') + '.');
+      p.push(band === 'high' ? 'Recommendation: move to a structured interview.' : band === 'mid' ? 'Recommendation: interview with a focus on the weak points noted above.' : 'Recommendation: low match against the successful profile — the manager decides.');
     } else {
       p.push('نسبة التطابق الكلية ' + m.match + '% (' + (band === 'high' ? 'تطابق مرتفع' : band === 'mid' ? 'تطابق متوسط' : 'تطابق منخفض') + ')' +
              (m.simStrong != null ? '، والتشابه مع الموظفين الأقوياء ' + m.simStrong + '%.' : '.'));
@@ -296,41 +296,41 @@
 
   /* ---------- interview questions generator ---------- */
   var IQ = {
-    study:      { ar: 'ذكرت أن لديك دراسة حالياً — كيف ستضمن عدم تأثيرها على ساعات العمل والأهداف الشهرية؟', he: 'ציינת שאתה לומד — איך תוודא שזה לא ישפיע על שעות העבודה והיעדים?' },
-    study_plan: { ar: 'ذكرت أنك تفكّر بالدراسة لاحقاً — ما هو الإطار الزمني بالضبط وكيف سيتعامل معه جدولك؟', he: 'ציינת שאתה שוקל לימודים — מה לוח הזמנים המדויק וכיצד הוא משתלב במשרה?' },
-    schedule:   { ar: 'أعطني مثالاً عملياً على أسبوع نهاية شهر — كيف ستنظّم وقتك إذا احتجنا ساعات إضافية؟', he: 'תן דוגמה מעשית לשבוע סוף חודש — איך תארגן את הזמן אם נדרשות שעות נוספות?' },
-    second_job: { ar: 'ما حجم الوقت الذي يأخذه عملك/مشروعك الآخر أسبوعياً، وماذا سيحدث إذا تعارض مع العمل؟', he: 'כמה זמן לוקחת העבודה/הפרויקט הנוסף, ומה יקרה בהתנגשות?' },
-    commute:    { ar: 'كيف ستضمن الوصول في الوقت كل يوم مع وضع المواصلات الحالي؟', he: 'איך תבטיח הגעה בזמן מדי יום עם מצב ההסעות הנוכחי?' },
-    stability:  { ar: 'ما سبب تغييرك للعمل في المرات السابقة، وما الذي سيجعلك تبقى هنا؟', he: 'מה הסיבה למעברים הקודמים ומה יגרום לך להישאר כאן?' },
-    low_persistence:    { ar: 'أعطني مثالاً على عميل رفضك أكثر من مرة واستمررت معه — ماذا فعلت بالضبط؟', he: 'תן דוגמה ללקוח שסירב יותר מפעם והמשכת איתו — מה עשית בדיוק?' },
-    low_accountability: { ar: 'احكِ لي عن شهر لم تحقق فيه الهدف — ما الذي كان بيدك أنت وتغيّر بعده؟', he: 'ספר על חודש שלא עמדת ביעד — מה היה בשליטתך ומה שינית?' },
-    low_discipline:     { ar: 'صف لي يوم عملك من 9 صباحاً حتى نهاية الدوام بالتفصيل وبالأرقام.', he: 'תאר את יום העבודה שלך משעה 9 עד סופו, בפירוט ובמספרים.' },
-    low_coachability:   { ar: 'ما آخر ملاحظة تلقيتها من مدير ولم تعجبك؟ ماذا فعلت بها؟', he: 'מה ההערה האחרונה ממנהל שלא אהבת, ומה עשית איתה?' },
-    low_target:         { ar: 'ما الرقم الذي تريد الوصول إليه شهرياً، ولماذا هذا الرقم تحديداً؟', he: 'לאיזה מספר חודשי אתה מכוון, ולמה דווקא הוא?' },
-    inconsistency:      { ar: 'لاحظنا إجابتين مختلفتين حول نفس الموضوع — دعنا نمر عليهما معاً للتوضيح.', he: 'זיהינו שתי תשובות שונות באותו נושא — נעבור עליהן יחד להבהרה.' }
+    study:      { ar: 'ذكرت أن لديك دراسة حالياً — كيف ستضمن عدم تأثيرها على ساعات العمل والأهداف الشهرية؟', en: 'You mentioned you are studying — how will you make sure it does not affect your working hours and monthly targets?' },
+    study_plan: { ar: 'ذكرت أنك تفكّر بالدراسة لاحقاً — ما هو الإطار الزمني بالضبط وكيف سيتعامل معه جدولك؟', en: 'You mentioned you are thinking about studying later — what exactly is the timeframe, and how will your schedule take it?' },
+    schedule:   { ar: 'أعطني مثالاً عملياً على أسبوع نهاية شهر — كيف ستنظّم وقتك إذا احتجنا ساعات إضافية؟', en: 'Give me a practical example of an end-of-month week — how will you organise your time if we need extra hours?' },
+    second_job: { ar: 'ما حجم الوقت الذي يأخذه عملك/مشروعك الآخر أسبوعياً، وماذا سيحدث إذا تعارض مع العمل؟', en: 'How much time does your other job or project take each week, and what happens if it clashes with work?' },
+    commute:    { ar: 'كيف ستضمن الوصول في الوقت كل يوم مع وضع المواصلات الحالي؟', en: 'How will you make sure you arrive on time every day, given your current transport?' },
+    stability:  { ar: 'ما سبب تغييرك للعمل في المرات السابقة، وما الذي سيجعلك تبقى هنا؟', en: 'Why did you change jobs the previous times, and what would make you stay here?' },
+    low_persistence:    { ar: 'أعطني مثالاً على عميل رفضك أكثر من مرة واستمررت معه — ماذا فعلت بالضبط؟', en: 'Give me an example of a customer who refused you more than once and you stayed with them — what exactly did you do?' },
+    low_accountability: { ar: 'احكِ لي عن شهر لم تحقق فيه الهدف — ما الذي كان بيدك أنت وتغيّر بعده؟', en: 'Tell me about a month where you missed the target — what was in your hands, and what did you change afterwards?' },
+    low_discipline:     { ar: 'صف لي يوم عملك من 9 صباحاً حتى نهاية الدوام بالتفصيل وبالأرقام.', en: 'Describe your working day from 9am to the end of the shift, in detail and in numbers.' },
+    low_coachability:   { ar: 'ما آخر ملاحظة تلقيتها من مدير ولم تعجبك؟ ماذا فعلت بها؟', en: 'What is the last piece of feedback from a manager that you did not like? What did you do with it?' },
+    low_target:         { ar: 'ما الرقم الذي تريد الوصول إليه شهرياً، ولماذا هذا الرقم تحديداً؟', en: 'What monthly number do you want to reach, and why that number in particular?' },
+    inconsistency:      { ar: 'لاحظنا إجابتين مختلفتين حول نفس الموضوع — دعنا نمر عليهما معاً للتوضيح.', en: 'We noticed two different answers on the same subject — let us go through them together.' }
   };
 
   function interviewQuestions(fl, d, lang) {
-    var he = lang === 'he', out = [], seen = {};
+    var en = lang === 'en', out = [], seen = {};
     fl.forEach(function (f) {
       if (!IQ[f.key] || seen[f.key]) return;
       seen[f.key] = 1;
-      out.push(he ? IQ[f.key].he : IQ[f.key].ar);
+      out.push(en ? IQ[f.key].en : IQ[f.key].ar);
     });
     var sorted = TK.filter(function (t) { return d.traits[t] != null; }).sort(function (a, b) { return d.traits[a] - d.traits[b]; });
     var lowest = sorted[0];
     var generic = {
-      target: { ar: 'كيف تتصرف عندما تكون في منتصف الشهر بعيداً عن الهدف؟ اعطني خطوات محددة.', he: 'איך אתה פועל כשבאמצע החודש אתה רחוק מהיעד? צעדים ספציפיים.' },
-      persistence: { ar: 'كم متابعة تعمل عادةً لعميل صامت؟ وكيف؟', he: 'כמה מעקבים אתה עושה ללקוח שותק? ואיך?' },
-      resilience: { ar: 'احكِ عن أسوأ يوم رفض مررت به وماذا فعلت بعده مباشرة.', he: 'ספר על יום הדחיות הגרוע ביותר ומה עשית מיד אחריו.' },
-      discipline: { ar: 'ما هو نظامك اليومي لتتبع العملاء؟ اعرض لي مثالاً.', he: 'מה השיטה היומית שלך למעקב אחר לקוחות? הדגם.' },
-      learning: { ar: 'ما آخر شيء غيّرته في أسلوب بيعك ولماذا؟', he: 'מה הדבר האחרון ששינית בשיטת המכירה שלך ולמה?' },
-      coachability: { ar: 'كيف تفضّل أن يوجّهك مديرك؟', he: 'איך היית רוצה שמנהל יאמן אותך?' },
-      accountability: { ar: 'ما نسبة النتيجة التي تعتبرها مسؤوليتك الشخصية؟ ولماذا؟', he: 'איזה אחוז מהתוצאה הוא באחריותך האישית? למה?' },
-      commitment: { ar: 'أين ترى نفسك بعد سنتين في هذا الدور؟', he: 'איפה אתה רואה את עצמך בעוד שנתיים בתפקיד?' }
+      target: { ar: 'كيف تتصرف عندما تكون في منتصف الشهر بعيداً عن الهدف؟ اعطني خطوات محددة.', en: 'What do you do when you are halfway through the month and far from target? Give me specific steps.' },
+      persistence: { ar: 'كم متابعة تعمل عادةً لعميل صامت؟ وكيف؟', en: 'How many follow-ups do you usually make with a customer who has gone quiet? And how?' },
+      resilience: { ar: 'احكِ عن أسوأ يوم رفض مررت به وماذا فعلت بعده مباشرة.', en: 'Tell me about the worst day of rejections you have had, and what you did straight afterwards.' },
+      discipline: { ar: 'ما هو نظامك اليومي لتتبع العملاء؟ اعرض لي مثالاً.', en: 'What is your daily system for tracking customers? Show me an example.' },
+      learning: { ar: 'ما آخر شيء غيّرته في أسلوب بيعك ولماذا؟', en: 'What is the last thing you changed in the way you sell, and why?' },
+      coachability: { ar: 'كيف تفضّل أن يوجّهك مديرك؟', en: 'How do you prefer your manager to coach you?' },
+      accountability: { ar: 'ما نسبة النتيجة التي تعتبرها مسؤوليتك الشخصية؟ ولماذا؟', en: 'What share of the result do you treat as your personal responsibility? And why?' },
+      commitment: { ar: 'أين ترى نفسك بعد سنتين في هذا الدور؟', en: 'Where do you see yourself in two years in this role?' }
     };
-    if (lowest && generic[lowest]) out.push(he ? generic[lowest].he : generic[lowest].ar);
-    out.push(he ? 'תן דוגמה לתקופה שבה לא היו תוצאות טובות והמשכת בכל זאת.' : 'أعطني مثالاً على فترة لم تحقق فيها نتائج جيدة واستمررت رغم ذلك.');
+    if (lowest && generic[lowest]) out.push(en ? generic[lowest].en : generic[lowest].ar);
+    out.push(en ? 'Give me an example of a stretch with poor results where you kept going anyway.' : 'أعطني مثالاً على فترة لم تحقق فيها نتائج جيدة واستمررت رغم ذلك.');
     return out.slice(0, 6);
   }
 
@@ -459,19 +459,19 @@
 
   /* ---------- manager summary for the 25-question model ---------- */
   function ncSummary(rep, lang) {
-    var he = lang === 'he', sc = rep.score, D = NC.DIMS;
-    var nm = function (k) { return he ? D[k].he : D[k].ar; };
+    var en = lang === 'en', sc = rep.score, D = NC.DIMS;
+    var nm = function (k) { return en ? D[k].en : D[k].ar; };
     var sorted = NC.DIM_KEYS.filter(function (k) { return sc.dims[k] != null; })
       .sort(function (a, b) { return sc.dims[b] - sc.dims[a]; });
     var top = sorted.slice(0, 3), weak = sorted.slice(-2).reverse();
     var p = [];
-    if (he) {
-      p.push('התאמה כוללת ' + sc.match + '%' + (rep.sims.strong != null ? ', דמיון לעובדים החזקים ' + rep.sims.strong + '%.' : '.'));
-      p.push('חזק במיוחד ב: ' + top.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join(', ') + '.');
-      p.push('נדרשת בדיקה ב: ' + weak.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join(', ') + '.');
-      if (sc.consistency != null) p.push('מדד עקביות: ' + sc.consistency + '%' +
-        (sc.consistency < 70 ? ' — שאלות ההצלבה בשלב 5 לא תואמות את הפרופיל שנבנה בשלבים 1–4, כדאי לברר בראיון.' : '.'));
-      if (sc.flags.length) p.push('לתשומת לב: ' + sc.flags.map(function (f) { return f.he; }).join(', ') + '.');
+    if (en) {
+      p.push('Overall match ' + sc.match + '%' + (rep.sims.strong != null ? ', similarity to the strong employees ' + rep.sims.strong + '%.' : '.'));
+      p.push('Strongest in: ' + top.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join(', ') + '.');
+      p.push('Needs checking in: ' + weak.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join(', ') + '.');
+      if (sc.consistency != null) p.push('Consistency index: ' + sc.consistency + '%' +
+        (sc.consistency < 70 ? ' — the level 5 cross-checks do not match the profile built over levels 1–4, worth clarifying in the interview.' : '.'));
+      if (sc.flags.length) p.push('To note: ' + sc.flags.map(function (f) { return f.en; }).join(', ') + '.');
     } else {
       p.push('نسبة التطابق الكلية ' + sc.match + '%' + (rep.sims.strong != null ? '، والتشابه مع الموظفين الأقوياء ' + rep.sims.strong + '%.' : '.'));
       p.push('الأقوى لديه: ' + top.map(function (k) { return nm(k) + ' (' + sc.dims[k] + ')'; }).join('، ') + '.');
@@ -484,33 +484,33 @@
   }
 
   var NC_IQ = {
-    target:     { ar: 'ما الرقم الشهري الذي تريد الوصول إليه، ولماذا هذا الرقم تحديداً؟', he: 'לאיזה מספר חודשי אתה מכוון ולמה דווקא אליו?' },
-    persist:    { ar: 'أعطني مثالاً على عميل رفضك أكثر من مرة واستمررت معه — ماذا فعلت بالضبط؟', he: 'תן דוגמה ללקוח שסירב יותר מפעם והמשכת איתו — מה עשית בדיוק?' },
-    discipline: { ar: 'صف لي يوم عملك من أوله لآخره بالأرقام: كم مكالمة، كم متابعة، ومتى؟', he: 'תאר את יום העבודה שלך במספרים: כמה שיחות, כמה מעקבים, ומתי?' },
-    commit:     { ar: 'ما هي التزاماتك الثابتة خلال الأشهر القادمة وكيف ستنظّمها مع الدوام؟', he: 'מהן ההתחייבויות הקבועות שלך בחודשים הקרובים ואיך הן משתלבות במשרה?' },
-    learn:      { ar: 'ما آخر ملاحظة تلقيتها ولم تعجبك؟ وماذا فعلت بها؟', he: 'מה ההערה האחרונה שקיבלת ולא אהבת, ומה עשית איתה?' },
-    account:    { ar: 'احكِ لي عن شهر لم تحقق فيه النتيجة — ما الذي كان بيدك أنت؟', he: 'ספר על חודש שלא עמדת בתוצאה — מה היה בשליטתך?' }
+    target:     { ar: 'ما الرقم الشهري الذي تريد الوصول إليه، ولماذا هذا الرقم تحديداً؟', en: 'What monthly number are you aiming for, and why that one in particular?' },
+    persist:    { ar: 'أعطني مثالاً على عميل رفضك أكثر من مرة واستمررت معه — ماذا فعلت بالضبط؟', en: 'Give me an example of a customer who refused you more than once and you stayed with them — what exactly did you do?' },
+    discipline: { ar: 'صف لي يوم عملك من أوله لآخره بالأرقام: كم مكالمة، كم متابعة، ومتى؟', en: 'Describe your working day in numbers: how many calls, how many follow-ups, and when?' },
+    commit:     { ar: 'ما هي التزاماتك الثابتة خلال الأشهر القادمة وكيف ستنظّمها مع الدوام؟', en: 'What fixed commitments do you have over the coming months, and how will you fit them around the job?' },
+    learn:      { ar: 'ما آخر ملاحظة تلقيتها ولم تعجبك؟ وماذا فعلت بها؟', en: 'What is the last piece of feedback you received that you did not like? And what did you do with it?' },
+    account:    { ar: 'احكِ لي عن شهر لم تحقق فيه النتيجة — ما الذي كان بيدك أنت؟', en: 'Tell me about a month where you did not deliver the result — what was within your control?' }
   };
   var NC_FLAG_IQ = {
-    study:      { ar: 'ذكرت أن لديك دراسة — ما هي الساعات بالضبط وكيف ستنظّمها مع الدوام؟', he: 'ציינת לימודים — מהן השעות ואיך הן משתלבות?' },
-    second_job: { ar: 'ما حجم الوقت الذي يأخذه عملك الآخر، وماذا سيحدث عند التعارض؟', he: 'כמה זמן לוקחת העבודה הנוספת ומה יקרה בהתנגשות?' },
-    schedule:   { ar: 'كيف ستضمن الالتزام بساعات الدوام الكاملة في الأشهر الأولى؟', he: 'איך תבטיח עמידה בשעות המלאות בחודשים הראשונים?' },
-    retention:  { ar: 'ما الذي يجعلك تستمر في وظيفة صعبة بدل البحث عن بديل؟', he: 'מה יגרום לך להישאר בתפקיד קשה במקום לחפש חלופה?' },
-    attendance: { ar: 'كيف تتعامل مع يوم تشعر فيه بتعب لكن لديك مواعيد عمل؟', he: 'איך אתה מתמודד עם יום שאתה עייף אבל יש פגישות?' },
-    conditional:{ ar: 'أعطني مثالاً على نتيجة حققتها في ظروف غير مناسبة إطلاقاً.', he: 'תן דוגמה לתוצאה שהשגת בתנאים ממש לא נוחים.' },
-    commitment_other: { ar: 'ما هو الالتزام الثابت لديك وهل يمكن تعديله؟', he: 'מהי ההתחייבות הקבועה והאם ניתן לשנותה?' }
+    study:      { ar: 'ذكرت أن لديك دراسة — ما هي الساعات بالضبط وكيف ستنظّمها مع الدوام؟', en: 'You mentioned studying — what exactly are the hours, and how will they fit around the job?' },
+    second_job: { ar: 'ما حجم الوقت الذي يأخذه عملك الآخر، وماذا سيحدث عند التعارض؟', en: 'How much time does your other job take, and what happens when it clashes?' },
+    schedule:   { ar: 'كيف ستضمن الالتزام بساعات الدوام الكاملة في الأشهر الأولى؟', en: 'How will you make sure you keep to full hours in the first months?' },
+    retention:  { ar: 'ما الذي يجعلك تستمر في وظيفة صعبة بدل البحث عن بديل؟', en: 'What would make you stay in a hard role instead of looking for an alternative?' },
+    attendance: { ar: 'كيف تتعامل مع يوم تشعر فيه بتعب لكن لديك مواعيد عمل؟', en: 'How do you handle a day when you feel tired but have work appointments?' },
+    conditional:{ ar: 'أعطني مثالاً على نتيجة حققتها في ظروف غير مناسبة إطلاقاً.', en: 'Give me an example of a result you achieved in conditions that really did not suit you.' },
+    commitment_other: { ar: 'ما هو الالتزام الثابت لديك وهل يمكن تعديله؟', en: 'What is your fixed commitment, and can it be adjusted?' }
   };
 
   function ncInterview(rep, lang) {
-    var he = lang === 'he', out = [], seen = {};
+    var en = lang === 'en', out = [], seen = {};
     rep.score.flags.forEach(function (f) {
-      if (NC_FLAG_IQ[f.key] && !seen[f.key]) { seen[f.key] = 1; out.push(he ? NC_FLAG_IQ[f.key].he : NC_FLAG_IQ[f.key].ar); }
+      if (NC_FLAG_IQ[f.key] && !seen[f.key]) { seen[f.key] = 1; out.push(en ? NC_FLAG_IQ[f.key].en : NC_FLAG_IQ[f.key].ar); }
     });
     var weakest = NC.DIM_KEYS.filter(function (k) { return rep.score.dims[k] != null; })
       .sort(function (a, b) { return rep.score.dims[a] - rep.score.dims[b]; }).slice(0, 2);
-    weakest.forEach(function (k) { out.push(he ? NC_IQ[k].he : NC_IQ[k].ar); });
+    weakest.forEach(function (k) { out.push(en ? NC_IQ[k].en : NC_IQ[k].ar); });
     if (rep.score.consistency != null && rep.score.consistency < 75) {
-      out.push(he ? 'זיהינו פערים בין תשובות דומות — נעבור עליהן יחד להבהרה.'
+      out.push(en ? 'We noticed gaps between similar answers — let us go through them together.'
                   : 'لاحظنا تبايناً بين إجابات متقاربة — دعنا نمر عليها معاً للتوضيح.');
     }
     return out.slice(0, 6);

@@ -2,7 +2,7 @@
 
 **لعبة تقييم مبيعات كاملة:** عالم SALES CITY، دمويات (Hero / عملاء / مدرّب)، مناطق تُفتح تباعاً، مواقف بيع حقيقية — وخلف الكواليس محرّك يبني **Sales DNA** لكل موظف ومرشّح ويقيس التطابق مع أفضل الموظفين.
 
-*משחק הערכה מלא: עולם משחק, דמויות, שלבים, אנימציות — ומאחורי הקלעים מנוע שבונה Sales DNA ומשווה מועמדים לעובדים המצליחים.*
+*A full assessment game: the SALES CITY world, characters, zones that unlock in turn, real selling scenarios — and behind the scenes an engine that builds a **Sales DNA** for every employee and candidate and measures the match against the best performers. The interface runs in Arabic and English.*
 
 ---
 
@@ -217,7 +217,7 @@ assets/js/candidate25.js    ← نموذج المرشّح: 25 سؤالاً، ت�
 assets/js/focus.js          ← تحدي التركيز: إحداثيات نسبية، معايرة، Quick Scan، الاحتساب
 assets/js/store.js          ← الحالة، بناء الاختبار حسب نوع المستخدم، بيانات تجريبية
 assets/js/engine.js         ← DNA، التشابه، الأنماط، الحالة، الفروقات، الملخّص، التنبؤ
-assets/js/ui.js             ← i18n (ar/he)، Radar/Bars/Ring، toast، confetti
+assets/js/ui.js             ← i18n (ar/en)، Radar/Bars/Ring، toast، confetti
 assets/js/game.js           ← مسار اللعبة: مدينة، بوابات، مشاهد، XP، صوت، احتفال
 assets/js/manager.js        ← كونسول المدير
 assets/js/app.js            ← Router والشاشات التمهيدية
