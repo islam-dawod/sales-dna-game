@@ -123,6 +123,13 @@
     } catch (e) { state = null; }
     if (!state || state.v !== 5) { state = defaults(); seed(); save(); }
     if (state.settings.focusEnabled === undefined) state.settings.focusEnabled = true;
+    /* the app ships Arabic and English only. A browser that had Hebrew
+       selected still has lang:'he' saved here, so anything unsupported
+       falls back instead of leaving the UI in a half-translated state. */
+    if (state.settings.lang !== 'ar' && state.settings.lang !== 'en') {
+      state.settings.lang = 'ar';
+      save();
+    }
     /* migrate away from any legacy plaintext pin */
     if (state.settings.pin !== undefined) { delete state.settings.pin; save(); }
     if (!state.settings.pinSha && !state.settings.pinFnv) {

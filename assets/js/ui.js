@@ -247,8 +247,10 @@
                       en: ['Registered', 'Stage 1', 'Initial match', 'Full assessment', 'Interview questions', 'Interview', 'Decision', 'Hired'] }
   };
 
+  var LANGS = ['ar', 'en'];                    /* Hebrew was removed — see store.load() */
   var lang = 'ar';
   function setLang(l) {
+    if (LANGS.indexOf(l) < 0) l = 'ar';
     lang = l;
     var root = document.documentElement;
     root.lang = l;
