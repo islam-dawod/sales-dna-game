@@ -140,7 +140,14 @@
     mgr_login:      { ar: 'دخول المدير', he: 'כניסת מנהל' },
     pin:            { ar: 'رمز الدخول', he: 'קוד כניסה' },
     wrong_pin:      { ar: 'رمز غير صحيح', he: 'קוד שגוי' },
-    demo_pin:       { ar: 'الرمز التجريبي: 1234', he: 'קוד דמו: 1234' },
+    pin_hint:       { ar: 'الدخول للمدير فقط', he: 'כניסה למנהל בלבד' },
+    pin_new:        { ar: 'كلمة سر جديدة (اتركها فارغة لعدم التغيير)', he: 'סיסמה חדשה (השאר ריק כדי לא לשנות)' },
+    pin_saved:      { ar: 'تم تحديث كلمة السر', he: 'הסיסמה עודכנה' },
+    pin_short:      { ar: 'كلمة السر قصيرة جداً (6 أحرف على الأقل)', he: 'הסיסמה קצרה מדי (6 תווים לפחות)' },
+    pin_stored:     { ar: 'مخزّنة كبصمة SHA-256 — لا تظهر في أي شاشة ولا في الكود.',
+                      he: 'נשמרת כ-hash SHA-256 — לא מוצגת בשום מסך ולא בקוד.' },
+    pin_note:       { ar: 'تنبيه: هذه حماية عرض فقط لأن التطبيق يعمل داخل المتصفح. للحماية الحقيقية يلزم قفل المجلد من السيرفر أو Backend.',
+                      he: 'לתשומת לב: זו הגנת תצוגה בלבד כי האפליקציה רצה בדפדפן. להגנה אמיתית נדרש נעילה בשרת או Backend.' },
     nav_dash:       { ar: 'لوحة القيادة', he: 'דאשבורד' },
     nav_emp:        { ar: 'الموظفون', he: 'עובדים' },
     nav_cand:       { ar: 'المرشحون', he: 'מועמדים' },
@@ -229,6 +236,37 @@
     var d = DICT[k];
     if (!d) return k;
     return d[lang] !== undefined ? d[lang] : d.ar;
+  }
+
+  /* ---------------- passphrase hashing ----------------
+     The passphrase itself is never stored or shipped — only its hash.
+     SHA-256 through the Web Crypto API on any https/localhost origin,
+     with a deterministic fallback for insecure contexts (file://).      */
+  function fnvHash(str) {
+    var out = '';
+    [0x811c9dc5, 0x01000193, 0x7fffffff, 0x9e3779b9].forEach(function (seed) {
+      var h = seed >>> 0;
+      for (var i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      out += ('00000000' + h.toString(16)).slice(-8);
+    });
+    return out;
+  }
+
+  function hashPass(str, cb) {
+    var enc = new TextEncoder().encode(String(str));
+    if (root.crypto && root.crypto.subtle && root.crypto.subtle.digest) {
+      root.crypto.subtle.digest('SHA-256', enc).then(function (buf) {
+        var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) {
+          return ('0' + b.toString(16)).slice(-2);
+        }).join('');
+        cb({ sha: hex, fnv: fnvHash(String(str)) });
+      })['catch'](function () { cb({ sha: null, fnv: fnvHash(String(str)) }); });
+    } else {
+      cb({ sha: null, fnv: fnvHash(String(str)) });
+    }
   }
 
   /* ---------------- dom helpers ---------------- */
@@ -353,6 +391,7 @@
 
   root.SDNA.UI = {
     T: T, setLang: setLang, getLang: getLang, DICT: DICT,
+    hashPass: hashPass, fnvHash: fnvHash,
     el: el, $: $, $$: $$, esc: esc, toast: toast, confetti: confetti, countUp: countUp,
     radar: radar, bars: bars, ring: ring, tone: tone
   };

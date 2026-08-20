@@ -155,13 +155,31 @@
       '<div class="fs-art small">' + Art.coach() + '</div>' +
       '<h2>' + esc(T('mgr_login')) + '</h2>' +
       '<div class="form">' +
-      '<label class="fld"><span>' + esc(T('pin')) + '</span><input id="pin" type="password" inputmode="numeric" autocomplete="off"></label>' +
+      '<label class="fld"><span>' + esc(T('pin')) + '</span><input id="pin" type="password" autocomplete="current-password"></label>' +
       '<button class="btn btn-primary btn-lg" id="doPin">' + esc(T('login')) + '</button>' +
-      '<p class="muted sm">' + esc(T('demo_pin')) + '</p></div></div>';
+      '<p class="muted sm">' + esc(T('pin_hint')) + '</p></div></div>';
     bindBack();
+    var tries = 0;
     var run = function () {
-      if (document.getElementById('pin').value !== Store.get().settings.pin) return UI.toast(T('wrong_pin'), 'bad');
-      go('manager');
+      var field = document.getElementById('pin');
+      var val = field.value;
+      if (!val) return UI.toast(T('wrong_pin'), 'bad');
+      UI.hashPass(val, function (h) {
+        var st = Store.get().settings;
+        var ok = (h.sha && st.pinSha && h.sha === st.pinSha) ||
+                 (h.fnv && st.pinFnv && h.fnv === st.pinFnv);
+        if (!ok) {
+          tries++;
+          field.value = '';
+          field.classList.add('err');
+          setTimeout(function () { field.classList.remove('err'); }, 900);
+          /* small delay after repeated attempts */
+          if (tries >= 3) { field.disabled = true; setTimeout(function () { field.disabled = false; field.focus(); }, 1500); }
+          return UI.toast(T('wrong_pin'), 'bad');
+        }
+        field.value = '';
+        go('manager');
+      });
     };
     document.getElementById('doPin').onclick = run;
     document.getElementById('pin').onkeydown = function (ev) { if (ev.key === 'Enter') run(); };

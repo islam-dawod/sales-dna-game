@@ -62,7 +62,9 @@
       v: 4,
       settings: {
         lang: 'ar',
-        pin: '1234',
+        /* manager passphrase — hash only, the passphrase is never stored */
+        pinSha: 'b2a90bf588df3cde30f7eba65edf369da0f75db3232c56e3c3490a6e6e20b768',
+        pinFnv: '098d0b680da954ced7119f6a200b563c',
         thresholds: { high: 80, mid: 65 },
         weights: null,          // employee 12-trait weights (null => learned)
         ncWeights: null,        // candidate 6-dimension weights (null => spec defaults)
@@ -89,6 +91,13 @@
     } catch (e) { state = null; }
     if (!state || state.v !== 4) { state = defaults(); seed(); save(); }
     if (state.settings.focusEnabled === undefined) state.settings.focusEnabled = true;
+    /* migrate away from any legacy plaintext pin */
+    if (state.settings.pin !== undefined) { delete state.settings.pin; save(); }
+    if (!state.settings.pinSha && !state.settings.pinFnv) {
+      state.settings.pinSha = 'b2a90bf588df3cde30f7eba65edf369da0f75db3232c56e3c3490a6e6e20b768';
+      state.settings.pinFnv = '098d0b680da954ced7119f6a200b563c';
+      save();
+    }
     return state;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }

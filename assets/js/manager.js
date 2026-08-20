@@ -1029,8 +1029,11 @@
         '<p class="muted sm">' + esc(T('open_anyway')) + ' · ' + esc(T('focus_note')) + '</p>' +
         '<button class="btn btn-primary" id="saveTh">' + esc(T('save')) + '</button></div>' +
       '<div class="card"><h3>PIN</h3>' +
-        '<label class="fld"><span>' + esc(T('pin')) + '</span><input id="pinIn" value="' + esc(s.settings.pin) + '"></label>' +
+        '<label class="fld"><span>' + esc(T('pin_new')) + '</span>' +
+          '<input id="pinIn" type="password" autocomplete="new-password" placeholder="••••••••"></label>' +
+        '<p class="muted sm">🔒 ' + esc(T('pin_stored')) + '</p>' +
         '<button class="btn btn-primary" id="savePin">' + esc(T('save')) + '</button>' +
+        '<p class="muted sm">' + esc(T('pin_note')) + '</p>' +
         '<h3 style="margin-top:18px">' + esc(T('reg_title')) + '</h3>' +
         '<label class="fld"><span>' + esc(T('phone')) + '</span><select id="reqPhone">' +
           '<option value="0"' + (s.settings.requirePhone ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'לא חובה' : 'اختياري') + '</option>' +
@@ -1065,9 +1068,19 @@
     };
     document.getElementById('savePin').onclick = function () {
       var ss = st().settings;
-      ss.pin = document.getElementById('pinIn').value || '1234';
       ss.requirePhone = document.getElementById('reqPhone').value === '1';
       ss.requireEmail = document.getElementById('reqMail').value === '1';
+      var np = document.getElementById('pinIn').value;
+      if (np) {
+        if (np.length < 6) { Store.save(); return UI.toast(T('pin_short'), 'bad'); }
+        UI.hashPass(np, function (h) {
+          if (h.sha) ss.pinSha = h.sha;
+          ss.pinFnv = h.fnv;
+          document.getElementById('pinIn').value = '';
+          Store.save(); UI.toast(T('pin_saved'));
+        });
+        return;
+      }
       Store.save(); UI.toast('✔');
     };
     document.getElementById('expBtn').onclick = function () {
