@@ -198,7 +198,9 @@
         '<td>' + (e.managerScore == null ? '<span class="muted">—</span>' : e.managerScore + '/10') + '</td>' +
         '<td>' + (d ? '<b style="color:' + UI.tone(d.overall) + '">' + d.overall + '</b>'
                     : (e.nc22 ? '<span class="chip">22 ✓</span>' : '<span class="muted">' + esc(T('no_assessment')) + '</span>')) + '</td>' +
-        '<td>' + (e.codeSha || e.codeFnv
+        /* hasCode comes from the server, which never sends the hash itself;
+           codeSha/codeFnv are the local-mode fields */
+        '<td>' + (e.hasCode || e.codeSha || e.codeFnv
           ? '<span class="pill" style="--c:#10b981">🔑 ' + esc(T('code_set')) + '</span>'
           : '<span class="pill" style="--c:#ef4444">' + esc(T('code_none')) + '</span>') + '</td>' +
         '<td><button class="btn btn-xs" data-code="' + e.id + '">🔑</button> ' +
