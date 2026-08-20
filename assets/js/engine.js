@@ -554,11 +554,15 @@
   /* ---- data-based classification (independent of the manager label) ---- */
   function dataClass(e) {
     var ps = perfStats(e);
+    /* no numbers at all → no data-based classification, and we say so */
+    if (ps.avg == null && e.targetPct == null && e.attendance == null && e.managerScore == null) {
+      return { group: null, score: null, insufficient: true, parts: {}, perf: ps };
+    }
     var target = ps.avg != null ? ps.avg : (e.targetPct || 0);
     var parts = {
       target:      clamp((target - 60) / 70 * 100, 0, 100),          // 60% → 0 · 130% → 100
       consistency: ps.consistency != null ? ps.consistency : 60,
-      attendance:  clamp((e.attendance - 70) / 30 * 100, 0, 100),
+      attendance:  e.attendance == null ? 60 : clamp((e.attendance - 70) / 30 * 100, 0, 100),
       manager:     clamp((e.managerScore || 0) * 10, 0, 100),
       late:        clamp(100 - (e.lateDays || 0) * 6, 0, 100)
     };
@@ -571,6 +575,10 @@
   function classCheck(e) {
     var dc = dataClass(e);
     var rank = { strong: 3, medium: 2, low: 1 };
+    if (dc.insufficient || !e.group) {
+      return { manager: e.group || null, data: dc.group, score: dc.score, perf: dc.perf,
+               conflict: false, insufficient: true, direction: 'same' };
+    }
     return {
       manager: e.group, data: dc.group, score: dc.score, perf: dc.perf,
       conflict: dc.group !== e.group,

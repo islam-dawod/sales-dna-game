@@ -6,7 +6,7 @@
 (function (root) {
   'use strict';
 
-  var KEY = 'sdna_state_v4';
+  var KEY = 'sdna_state_v5';
   var Q = root.SDNA.Q, NC = root.SDNA.NC;
 
   /* ---------- deterministic RNG (stable demo data) ---------- */
@@ -59,7 +59,7 @@
   /* ---------- default state ---------- */
   function defaults() {
     return {
-      v: 4,
+      v: 5,
       settings: {
         lang: 'ar',
         /* manager passphrase — hash only, the passphrase is never stored */
@@ -89,7 +89,7 @@
       var raw = localStorage.getItem(KEY);
       state = raw ? JSON.parse(raw) : null;
     } catch (e) { state = null; }
-    if (!state || state.v !== 4) { state = defaults(); seed(); save(); }
+    if (!state || state.v !== 5) { state = defaults(); seed(); save(); }
     if (state.settings.focusEnabled === undefined) state.settings.focusEnabled = true;
     /* migrate away from any legacy plaintext pin */
     if (state.settings.pin !== undefined) { delete state.settings.pin; save(); }
@@ -105,217 +105,108 @@
   function reset() { state = defaults(); seed(); save(); return state; }
   function wipe() { state = defaults(); save(); return state; }
 
-  /* ---------- demo seed ---------- */
-  var FIRST = ['سالم', 'أحمد', 'محمود', 'ياسين', 'خالد', 'إبراهيم', 'صالح', 'عمر', 'رامي', 'نور',
-               'سامي', 'حسن', 'مجد', 'وليد', 'كريم', 'عادل', 'فادي', 'زياد', 'طارق', 'بلال',
-               'ليان', 'سارة', 'دانا', 'ريما'];
-  var LAST = ['خطيب', 'عثمان', 'حمدان', 'زعبي', 'شاهين', 'مرعي', 'أبو راس', 'سليم', 'عابد', 'حجازي',
-              'صفدي', 'قاسم', 'نصار', 'دراوشة', 'بدران', 'عوض'];
-  var DEPTS = ['B2B', 'Retail', 'Telesales', 'Field'];
+  /* ---------- real roster (no demo data ships any more) ----------
+     Each employee has a private login code stored ONLY as a hash, so the
+     codes cannot be read out of this file, out of the page, or out of the
+     saved state. They are handed to the manager out of band.            */
+  var ROSTER = [
+    { id: 'EMP01', name: 'Enas Ibrahim', branch: 'مصر',
+      codeSha: '400b61369bc491f4b93002fdda342c46524053ff1a481ea188f68a423b75af92',
+      codeFnv: '5b50e148e07a9eee7b1933ca05627ecc' },
+    { id: 'EMP02', name: 'Hajar Hilal', branch: 'مصر',
+      codeSha: '661046bb15c5770007495c6c54c70f99c46fd0544588952988058284550ff432',
+      codeFnv: 'c0a9503271677038caf5b01cb1db4a7e' },
+    { id: 'EMP03', name: 'Salma Fathy', branch: 'مصر',
+      codeSha: 'e037dcdceb2316219e59a67716c219e64789f8dc9599fef2103149900ca85533',
+      codeFnv: '8881133d5be8a63f9f38d3db60887361' },
+    { id: 'EMP04', name: 'Esraa Hamed', branch: 'مصر',
+      codeSha: '253a428a3db291001026c0ee62e679d38bcde49f70b827793550a422a94a817d',
+      codeFnv: 'ba37f0d22204af88ec73393c9dc0739e' },
+    { id: 'EMP05', name: 'Abdullah Fadl', branch: 'مصر',
+      codeSha: '541c428c4c0773d50b0cf6a947b80580c60bf08827987b2ca5c895843914d25d',
+      codeFnv: '34f1df7b352485a1a0ff312dc4f4298f' },
+    { id: 'EMP06', name: 'Esraa Mohammed', branch: 'مصر',
+      codeSha: '0c60e4b2f7cbcaabc1e2ccb6092e176c038c646e757c981f8a86ce651011683f',
+      codeFnv: '31ed463eafb63f9c7aafd1507076241a' },
+    { id: 'EMP07', name: 'Rodina Waleed', branch: 'مصر',
+      codeSha: '1773aed591144e6726f4ebf64a9d72583e188b76d0185b21a8be99e90807d1ff',
+      codeFnv: 'd6d16894b8ba5882c22718162df77bf0' },
+    { id: 'EMP08', name: 'Israa El Feki', branch: 'مصر',
+      codeSha: '60f8bb3da5d50b306fd2856ab9d04ff276c1b83ba2ea7a2a9fc07862c520273c',
+      codeFnv: '03dcb423331ff4598385463501b31c17' },
+    { id: 'EMP09', name: 'Shimaa Saad', branch: 'مصر',
+      codeSha: '7940d251c27caac505a692eb3e9a0d5f9418f18c2e477c48bbcd38ca13f10598',
+      codeFnv: 'd0bb56ebda4d45b9367483156e14a82f' },
+    { id: 'EMP10', name: 'Salma Salah', branch: 'مصر',
+      codeSha: 'b52911fcad155f3310f88c7d2e20590c56927eb98f2722b31b1b26f81cc351ab',
+      codeFnv: 'fb12361e07ea8858170e6194119dc252' },
+    { id: 'EMP11', name: 'Heba ELdesouki', branch: 'مصر',
+      codeSha: 'c351dc3f0164c31acd8a1c3faeb316b283729b7f6317b67f4d0a388716f4e27a',
+      codeFnv: '3e12b19208e78f58154be14c3ec0861e' },
+    { id: 'EMP12', name: 'Mallak Hefny', branch: 'مصر',
+      codeSha: 'ba71012c8207c63f984afc452663707a3bf89eca3af9c81c2ed23679b1fcd7b8',
+      codeFnv: 'e0855bed44f44acb7aafd657aa84ee71' },
+    { id: 'EMP13', name: 'Doaa Abdelhamed', branch: 'مصر',
+      codeSha: '0a7f8aa0fee830f814081fa054277053c4e4858e3738ca5b1be9fdcf18d9a265',
+      codeFnv: '96ae90b34eba054dd9e6b9014b5e3f8f' },
+    { id: 'EMP14', name: 'Bilal Ahmed', branch: 'مصر',
+      codeSha: '30abf0326876f413c1e022de5262969b487a52cdf294b512a4e151414857b8e4',
+      codeFnv: 'c01138da3d36399429bfa5d8b16e0f96' },
+    { id: 'EMP15', name: 'Mohamed Hegazy', branch: 'مصر',
+      codeSha: '753acc26d23c2f0e4336a17f97234e117d2f21af53898b58d2d80c109ef66e96',
+      codeFnv: '32c1d77691dc7228801e7a6c61dc09e2' },
+    { id: 'EMP16', name: 'Manar Ashraf', branch: 'مصر',
+      codeSha: 'bf33ec3458f3153b0d8e379ccdfb23807f16b508030d41c9906b587653486ef1',
+      codeFnv: '058ba22945699faf56dcb61349a8e155' },
+    { id: 'EMP17', name: 'Abeer AbuAlrob', branch: 'رام الله',
+      codeSha: '4232c61c3916f4be2247f62e032d1537a5c3800b2abb11315dc400174042c207',
+      codeFnv: '56cb704e598142e0f8fa2e8c44e31652' },
+    { id: 'EMP18', name: 'Sondos Radi', branch: 'رام الله',
+      codeSha: '17ee62bd501b9d17e67e6375ff7567dcbe1c194e203bd51630e3804697fd60d5',
+      codeFnv: '11eb757a1ff4900c1136d6d80ef6c6fe' },
+    { id: 'EMP19', name: 'Shoroq Abualhof', branch: 'فلسطين',
+      codeSha: 'f5370ae6abf1686eec3f43937dc40dcad2f39f3f14da2e870351a92931c2ced8',
+      codeFnv: '4d5c3b0697b013c8d1d672f4b5c6bc1a' },
+    { id: 'EMP20', name: 'Noor Shehadeh', branch: 'فلسطين',
+      codeSha: '5f3a4e3a66dadb292255844a2791e270ff90dbe7bc5d65596bc845e87245904c',
+      codeFnv: '4922884f057c1245451438014eaca263' },
+    { id: 'EMP21', name: 'Naseem Zbidat', branch: 'فلسطين',
+      codeSha: '3d628c8e35cd1c1eca92effdd2d9c2c3c9221673dc4ea471f783f3479800fd4e',
+      codeFnv: 'a7485e09ac4b069333e978cf52e7737d' },
+    { id: 'EMP22', name: 'Firas Ahmed', branch: 'فلسطين',
+      codeSha: '53ed2383838ad9694a385c7e523215ce75d5cb3d67848c39283061fb46f7f477',
+      codeFnv: 'b7c5e42c696504d21208d48ef0347a50' },
+    { id: 'EMP23', name: 'Lina Zbeidat', branch: 'فلسطين',
+      codeSha: '6426cde3d2cb78fff46061402980ea60b7eb4e166b7a5aa4f824bf062698f5c3',
+      codeFnv: 'eed98c2c4b0723024fbcf76616a18c18' },
+    { id: 'EMP24', name: 'Omar Masri', branch: 'فلسطين',
+      codeSha: 'a3f8c0623899390c7e8bd3ffa9a0ecc6c53fe3e65568a71df1bc560a825cbe08',
+      codeFnv: 'de81b2b34ce4d72954392615bd4440d7' }
+  ];
 
-  /* --- employee behaviour simulation (12-trait model) ---
-     Demo realism: in real companies only part of the traits separate the
-     strong from the weak. SEP = how much this trait separates (0..1).
-     Traits with a low SEP end up similar in all three groups, which is
-     exactly the case the DIFFERENTIATORS screen has to expose.          */
-  var SEP = {
-    target: 1, persistence: 1, resilience: 0.95, accountability: 0.9,
-    commitment: 0.85, motivation: 0.8,
-    discipline: 0.15, learning: 0.1, coachability: 0.12,
-    customer: 0.25, closing: 0.2, initiative: 0.3
-  };
-  var COMMON = 0.74;
-  function biasFor(group, trait) {
-    var g = group === 'strong' ? 0.88 : group === 'medium' ? 0.62 : 0.34;
-    var sep = SEP[trait] == null ? 0.6 : SEP[trait];
-    return COMMON + (g - COMMON) * sep;
-  }
-
-  function simAnswer(q, group, rnd) {
-    var bias = biasFor(group, q.trait);
-    var want = Math.max(0, Math.min(1, bias + (rnd() - 0.5) * 0.4)) * 100;
-    var best = 0, bd = 1e9;
-    q.a.forEach(function (o, i) {
-      var d = Math.abs(o.s - want);
-      if (d < bd) { bd = d; best = i; }
-    });
-    return best;
-  }
-  function planAnswers(plan, group, rnd) {
-    var answers = [];
-    plan.forEach(function (blk) {
-      blk.qs.forEach(function (qid) {
-        var q = Q.get(qid);
-        var oi = simAnswer(q, group, rnd);
-        answers.push({ qid: qid, opt: oi, s: q.a[oi].s, f: q.a[oi].f || null, zone: q.zone, trait: q.trait });
-        var fu = q.a[oi].fu;
-        if (fu && Q.get(fu)) {
-          var fq = Q.get(fu), fi = simAnswer(fq, group, rnd);
-          answers.push({ qid: fu, opt: fi, s: fq.a[fi].s, f: fq.a[fi].f || null, zone: fq.zone, trait: fq.trait });
-        }
-      });
-    });
-    return answers;
-  }
-
-  /* --- candidate 25-question simulation --- */
-  function optQuality(q, oi) {
-    var opt = q.a[oi], sum = 0, max = 0;
-    NC.DIM_KEYS.forEach(function (k) {
-      var m = 0;
-      q.a.forEach(function (o) { if (o.p[k] != null && o.p[k] > m) m = o.p[k]; });
-      max += m;
-      sum += opt.p[k] || 0;
-    });
-    return max ? sum / max : 0.5;
-  }
-  /* 12 months of target achievement — strong staff are also more consistent */
-  function monthly(group, rnd) {
-    var base = group === 'strong' ? 118 : group === 'medium' ? 92 : 66;
-    var spread = group === 'strong' ? 12 : group === 'medium' ? 20 : 34;
-    var out = [];
-    for (var m = 0; m < 12; m++) {
-      var pct = Math.round(base + (rnd() - 0.5) * 2 * spread);
-      out.push({ m: '2025-' + String(m + 1).padStart(2, '0'), pct: Math.max(18, pct) });
-    }
-    return out;
-  }
-
-  var NC_SEP = { target: 1, persist: 1, account: 0.9, commit: 0.85, discipline: 0.15, learn: 0.1 };
-  function mainDim(q) {
-    var best = null, bv = -1;
-    NC.DIM_KEYS.forEach(function (k) {
-      var tot = 0;
-      q.a.forEach(function (o) { tot += o.p[k] || 0; });
-      if (tot > bv) { bv = tot; best = k; }
-    });
-    return best;
-  }
-  function ncBias(group, dim) {
-    var g = group === 'strong' ? 0.86 : group === 'medium' ? 0.6 : 0.32;
-    var sep = NC_SEP[dim] == null ? 0.6 : NC_SEP[dim];
-    return 0.72 + (g - 0.72) * sep;
-  }
-
-  function simNc(group, rnd, aud) {
-    var answers = [];
-    NC.plan(aud || 'cand').forEach(function (blk) {
-      blk.qs.forEach(function (qid) {
-        var q = NC.get(qid);
-        var want = Math.max(0, Math.min(1, ncBias(group, mainDim(q)) + (rnd() - 0.5) * 0.42));
-        var best = 0, bd = 1e9;
-        q.a.forEach(function (o, i) {
-          var d = Math.abs(optQuality(q, i) - want);
-          if (d < bd) { bd = d; best = i; }
-        });
-        answers.push({ qid: qid, opt: best, lvl: q.lvl });
-        var fu = q.a[best].fu;
-        if (fu && NC.get(fu)) {
-          var fq = NC.get(fu), fb = 0, fbd = 1e9;
-          fq.a.forEach(function (o, i) {
-            var d = Math.abs(optQuality(fq, i) - want);
-            if (d < fbd) { fbd = d; fb = i; }
-          });
-          answers.push({ qid: fu, opt: fb, lvl: fq.lvl, extra: true });
-        }
-      });
-    });
-    return answers;
-  }
-
-  /* --- focus mini-game simulation (deliberately only loosely tied to group) --- */
-  function simFocus(group, rnd) {
-    var skill = 0.5 + rnd() * 0.45 + (group === 'strong' ? 0.1 : group === 'low' ? -0.06 : 0);
-    skill = Math.max(0.2, Math.min(1, skill));
-    var found = Math.max(1, Math.min(4, Math.round(2 + skill * 2.2)));
-    var wrong = Math.max(0, Math.round((1 - skill) * 4 * rnd()));
-    var times = [];
-    var t = 3 + (1 - skill) * 6;
-    for (var i = 0; i < found; i++) { t += 3 + (1 - skill) * 8 * rnd(); times.push(Math.round(t * 10) / 10); }
-    var scanTotal = 6, scanCorrect = Math.max(1, Math.min(scanTotal, Math.round(scanTotal * (0.45 + skill * 0.55))));
-    var scanAvg = Math.round((2 + (1 - skill) * 5) * 10) / 10;
-    return root.SDNA.Focus.scoreFrom({
-      spot: { found: found, total: 4, wrong: wrong, times: times, elapsed: Math.min(45, times[times.length - 1] + 3), limit: 45 },
-      scan: { correct: scanCorrect, total: scanTotal, avg: scanAvg, rounds: 3 }
-    });
+  function blankEmployee(r) {
+    return {
+      id: r.id, name: r.name, branch: r.branch || '',
+      codeSha: r.codeSha || null, codeFnv: r.codeFnv || null,
+      dept: '', startDate: '',
+      targetPct: null, monthsAbove: null, monthsTotal: 12,
+      attendance: null, lateDays: null, managerScore: null,
+      group: null,              /* the manager classifies once real data exists */
+      assessment: null, nc22: null, focus: null,
+      history: [], followups: []
+    };
   }
 
   function seed() {
-    var rnd = mulberry32(20260818);
-    var groups = [], i;
-    for (i = 0; i < 7; i++) groups.push('strong');
-    for (i = 0; i < 11; i++) groups.push('medium');
-    for (i = 0; i < 6; i++) groups.push('low');
-
-    state.employees = groups.map(function (g, i) {
-      var perf = g === 'strong' ? 108 + rnd() * 42 : g === 'medium' ? 82 + rnd() * 22 : 48 + rnd() * 28;
-      var e = {
-        id: 'E' + (101 + i), code: 'E' + (101 + i),
-        name: FIRST[i % FIRST.length] + ' ' + LAST[(i * 3) % LAST.length],
-        dept: DEPTS[i % DEPTS.length],
-        startDate: (2019 + Math.floor(rnd() * 6)) + '-' + String(1 + Math.floor(rnd() * 12)).padStart(2, '0') + '-01',
-        targetPct: Math.round(perf),
-        monthsAbove: g === 'strong' ? 8 + Math.floor(rnd() * 5) : g === 'medium' ? 4 + Math.floor(rnd() * 4) : Math.floor(rnd() * 3),
-        monthsTotal: 12,
-        attendance: Math.round(g === 'strong' ? 95 + rnd() * 5 : g === 'medium' ? 88 + rnd() * 8 : 78 + rnd() * 10),
-        lateDays: Math.round(g === 'strong' ? rnd() * 3 : g === 'medium' ? 3 + rnd() * 6 : 8 + rnd() * 12),
-        managerScore: Math.round(g === 'strong' ? 8 + rnd() * 2 : g === 'medium' ? 6 + rnd() * 2 : 3 + rnd() * 3),
-        group: g, assessment: null, nc22: null, focus: null, followups: [],
-        history: monthly(g, rnd)
-      };
-      if (i % 8 !== 7) {
-        e.assessment = {
-          answers: planAnswers(buildPlan('employee', rnd), g, rnd),
-          completedAt: '2026-0' + (1 + (i % 8)) + '-1' + (i % 9), xp: 0, badges: []
-        };
-      }
-      /* two deliberate classification conflicts for the ⚠ REVIEW CLASSIFICATION case */
-      if (i === 2) {            /* manager says STRONG, the numbers say otherwise */
-        e.history = monthly('low', rnd);
-        e.targetPct = 74; e.attendance = 86; e.lateDays = 9; e.managerScore = 8;
-      }
-      if (i === 19) {           /* manager says LOW, the numbers are good */
-        e.history = monthly('strong', rnd);
-        e.targetPct = 121; e.attendance = 97; e.lateDays = 1; e.managerScore = 5;
-      }
-      if (i % 8 !== 7) e.nc22 = { answers: simNc(g, rnd, 'emp'), completedAt: '2026-08-01' };
-      if (i % 3 !== 2) e.focus = simFocus(g, rnd);      // ~2/3 of the team played the mini-games
-      return e;
-    });
-
-    var cNames = ['صالح مرعي', 'يوسف حداد', 'مروان زيدان', 'أنس قاسم', 'هيثم صبري', 'لؤي أبو صالح',
-                  'ربيع ناصر', 'إياد شحادة', 'تامر بدير', 'أمير خوري', 'سيف الدين عمار', 'نادر حلبي'];
-    var stages = [7, 5, 3, 3, 3, 3, 3, 3, 2, 2, 1, 1];
-    state.candidates = cNames.map(function (nm, i) {
-      var g = i < 4 ? 'strong' : i < 8 ? 'medium' : 'low';
-      var st = stages[i];
-      var c = {
-        id: 'C' + (201 + i), name: nm,
-        phone: '05' + (2 + i % 8) + '-' + (1000000 + Math.floor(rnd() * 8999999)),
-        email: 'cand' + (201 + i) + '@mail.com',
-        createdAt: '2026-08-0' + (1 + (i % 9)),
-        stage: st, nc: null, focus: null,
-        decision: st >= 7 ? 'hired' : st === 5 ? 'interview' : null,
-        followups: []
-      };
-      if (st >= 2) c.nc = { answers: simNc(g, rnd), completedAt: c.createdAt, xp: 25 * 50 + 5 * 500 };
-      if (st >= 3) c.focus = simFocus(g, rnd);
-      if (st >= 7) {
-        c.followups = [{ day: 90, targetPct: 118 }];
-        c.reviews = [
-          { day: 30, attendance: 96, discipline: 88, learning: 90, coachability: 92, effort: 94 },
-          { day: 90, targetPct: 121, sales: 121000, persistence: 90, managerRating: 9 }
-        ];
-        c.hiredAt = '2026-03-01';
-      }
-      return c;
-    });
+    state.employees = ROSTER.map(blankEmployee);
+    state.candidates = [];
   }
 
   /* ---------- CRUD ---------- */
   function addEmployee(e) {
-    e.id = e.id || uid('E'); e.code = e.code || e.id; e.followups = e.followups || [];
-    get().employees.push(e); save(); return e;
+    var rec = blankEmployee({ id: e.id || uid('E'), name: e.name || '' });
+    Object.keys(e).forEach(function (k) { if (e[k] !== undefined) rec[k] = e[k]; });
+    get().employees.push(rec); save(); return rec;
   }
   function updateEmployee(id, patch) {
     var e = get().employees.filter(function (x) { return x.id === id; })[0];
@@ -325,11 +216,35 @@
   function removeEmployee(id) {
     var s = get(); s.employees = s.employees.filter(function (x) { return x.id !== id; }); save();
   }
-  function findEmployeeByCode(code) {
-    var c = String(code || '').trim().toUpperCase();
+  /* login by hashed code — the plain code is never stored anywhere */
+  function findByCodeHash(h) {
     return get().employees.filter(function (e) {
-      return String(e.code).toUpperCase() === c || String(e.id).toUpperCase() === c;
+      return (h.sha && e.codeSha && h.sha === e.codeSha) ||
+             (h.fnv && e.codeFnv && h.fnv === e.codeFnv);
     })[0];
+  }
+
+  function setEmployeeCode(id, code, cb) {
+    root.SDNA.UI.hashPass(String(code).trim().toUpperCase(), function (h) {
+      var e = get().employees.filter(function (x) { return x.id === id; })[0];
+      if (!e) return cb && cb(null);
+      if (h.sha) e.codeSha = h.sha;
+      e.codeFnv = h.fnv;
+      save();
+      if (cb) cb(e);
+    });
+  }
+
+  /* readable, unambiguous, not guessable: LLLL-DDDD */
+  function randomCode() {
+    var L = 'ABCDEFGHJKLMNPQRSTUVWXYZ', D = '23456789', out = '';
+    var buf = new Uint32Array(8);
+    if (root.crypto && root.crypto.getRandomValues) root.crypto.getRandomValues(buf);
+    else for (var k = 0; k < 8; k++) buf[k] = Math.floor(Math.random() * 4294967296);
+    for (var i = 0; i < 4; i++) out += L[buf[i] % L.length];
+    out += '-';
+    for (var j = 4; j < 8; j++) out += D[buf[j] % D.length];
+    return out;
   }
   function addCandidate(c) {
     c.id = c.id || uid('C');
@@ -350,7 +265,7 @@
     load: load, save: save, get: get, reset: reset, wipe: wipe,
     buildPlan: buildPlan, shuffle: shuffle, uid: uid, rng: mulberry32,
     addEmployee: addEmployee, updateEmployee: updateEmployee, removeEmployee: removeEmployee,
-    findEmployeeByCode: findEmployeeByCode,
+    findByCodeHash: findByCodeHash, setEmployeeCode: setEmployeeCode, randomCode: randomCode,
     addCandidate: addCandidate, updateCandidate: updateCandidate, removeCandidate: removeCandidate,
     KEY: KEY, BLUEPRINT: BLUEPRINT
   };

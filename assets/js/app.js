@@ -65,33 +65,46 @@
 
   /* ---------------- employee ---------------- */
   function empLogin() {
-    var codes = Store.get().employees.slice(0, 4).map(function (e) { return e.code; }).join(' · ');
     app.innerHTML = '<div class="screen form-screen">' + backBtn() +
       '<div class="fs-art small">' + Art.hero({ pose: 'idle', expr: 'idle' }) + '</div>' +
       '<h2>' + esc(T('emp_login')) + '</h2>' +
       '<div class="form">' +
-      '<label class="fld"><span>' + esc(T('emp_code')) + '</span><input id="code" placeholder="E101" autocomplete="off"></label>' +
+      '<label class="fld"><span>' + esc(T('emp_code')) + '</span>' +
+        '<input id="code" placeholder="ABCD-1234" autocomplete="off" spellcheck="false" ' +
+        'style="text-transform:uppercase;letter-spacing:1px"></label>' +
       '<button class="btn btn-primary btn-lg" id="doLogin">' + esc(T('login')) + '</button>' +
-      '<p class="muted sm">DEMO: ' + esc(codes) + '</p></div></div>';
+      '<p class="muted sm">' + esc(T('emp_code_note')) + '</p></div></div>';
     bindBack();
+    var tries = 0;
     var run = function () {
-      var e = Store.findEmployeeByCode(document.getElementById('code').value);
-      if (!e) return UI.toast(T('not_found'), 'bad');
-      go('empReady', e);
+      var field = document.getElementById('code');
+      var v = String(field.value || '').trim().toUpperCase();
+      if (!v) return UI.toast(T('not_found'), 'bad');
+      UI.hashPass(v, function (h) {
+        var e = Store.findByCodeHash(h);
+        if (!e) {
+          tries++;
+          field.value = ''; field.classList.add('err');
+          setTimeout(function () { field.classList.remove('err'); }, 900);
+          if (tries >= 3) { field.disabled = true; setTimeout(function () { field.disabled = false; field.focus(); }, 1500); }
+          return UI.toast(T('not_found'), 'bad');
+        }
+        go('empReady', e);
+      });
     };
     document.getElementById('doLogin').onclick = run;
     document.getElementById('code').onkeydown = function (ev) { if (ev.key === 'Enter') run(); };
   }
 
   function empReady(e) {
-    var yrs = e.startDate ? (2026 - Number(String(e.startDate).slice(0, 4))) : '—';
+    var yrs = e.startDate ? (2026 - Number(String(e.startDate).slice(0, 4))) + 'y' : '—';
     app.innerHTML = '<div class="screen form-screen hello">' + backBtn() +
       '<div class="fs-art">' + Art.hero({ pose: 'cheer', expr: 'happy' }) + '</div>' +
       '<h1 class="hello-name">' + esc(T('hello_name').replace('{n}', e.name.split(' ')[0])) + '</h1>' +
       '<div class="mini-facts">' +
-        '<div><small>' + esc(T('dept')) + '</small><b>' + esc(e.dept) + '</b></div>' +
-        '<div><small>' + esc(T('seniority')) + '</small><b>' + yrs + 'y</b></div>' +
-        '<div><small>' + esc(T('target_pct')) + '</small><b>' + e.targetPct + '%</b></div>' +
+        '<div><small>' + esc(T('dept')) + '</small><b>' + esc(e.dept || '—') + '</b></div>' +
+        '<div><small>' + esc(T('seniority')) + '</small><b>' + yrs + '</b></div>' +
+        '<div><small>' + esc(T('target_pct')) + '</small><b>' + (e.targetPct == null ? '—' : e.targetPct + '%') + '</b></div>' +
       '</div>' +
       '<h3>' + esc(T('ready_challenge')) + '</h3>' +
       '<div class="pick-mode">' +

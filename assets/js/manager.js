@@ -26,8 +26,15 @@
   function empDNA(e) { return e.assessment ? Engine.dna(e.assessment.answers) : null; }
   function candDNA(c) { var a = Engine.candAnswers(c); return a.length ? Engine.dna(a) : null; }
   function lname(t) { return UI.getLang() === 'he' ? Q.TRAITS[t].he : Q.TRAITS[t].ar; }
-  function gname(g) { return T(g === 'strong' ? 'group_strong' : g === 'medium' ? 'group_medium' : 'group_low'); }
-  function gcolor(g) { return g === 'strong' ? '#10b981' : g === 'medium' ? '#3b82f6' : '#ef4444'; }
+  function gname(g) {
+    return T(g === 'strong' ? 'group_strong' : g === 'medium' ? 'group_medium'
+           : g === 'low' ? 'group_low' : 'group_unclassified');
+  }
+  function gcolor(g) {
+    return g === 'strong' ? '#10b981' : g === 'medium' ? '#3b82f6'
+         : g === 'low' ? '#ef4444' : '#8ea0c4';
+  }
+  function num(v, suffix) { return v == null ? '<span class="muted">—</span>' : v + (suffix || ''); }
 
   function open() { app = document.getElementById('app'); tab = 'dash'; view = null; render(); }
 
@@ -74,8 +81,8 @@
   function dash() {
     var s = st();
     var tested = s.employees.filter(function (e) { return e.assessment; }).length;
-    var g = { strong: 0, medium: 0, low: 0 };
-    s.employees.forEach(function (e) { g[e.group]++; });
+    var g = { strong: 0, medium: 0, low: 0, none: 0 };
+    s.employees.forEach(function (e) { g[e.group || 'none']++; });
     var cands = s.candidates;
     var high = cands.filter(function (c) {
       var r = c.nc ? Engine.candidateReport(c, s) : null; return r && r.band === 'high';
@@ -99,6 +106,7 @@
         kpi('🔥', g.strong, T('kpi_strong'), '#10b981') +
         kpi('⚡', g.medium, T('kpi_medium'), '#3b82f6') +
         kpi('⬇', g.low, T('kpi_low'), '#ef4444') +
+        kpi('❔', g.none, T('group_unclassified'), '#8ea0c4') +
         kpi('🚀', cands.length, T('kpi_cand'), '#8b5cf6') +
         kpi('✅', high, T('kpi_high_match'), '#22d3ee') +
       '</div>' +
@@ -146,28 +154,49 @@
   }
 
   /* ================= EMPLOYEES ================= */
+  var empBranch = null;
+
   function employees() {
     var s = st();
-    var rows = s.employees.map(function (e) {
+    var branches = [];
+    s.employees.forEach(function (e) { if (e.branch && branches.indexOf(e.branch) < 0) branches.push(e.branch); });
+    var list = s.employees.filter(function (e) { return !empBranch || e.branch === empBranch; });
+
+    var rows = list.map(function (e) {
       var d = empDNA(e);
-      var bc = Engine.benchmarkCheck(e);
+      var cc = Engine.classCheck(e);
       return '<tr data-emp="' + e.id + '">' +
-        '<td><b>' + esc(e.name) + '</b><small class="muted"> · ' + esc(e.code) + '</small></td>' +
-        '<td>' + esc(e.dept) + '</td>' +
+        '<td><b>' + esc(e.name) + '</b></td>' +
+        '<td>' + (e.branch ? '<span class="chip">' + esc(e.branch) + '</span>' : '<span class="muted">—</span>') + '</td>' +
         '<td><span class="pill" style="--c:' + gcolor(e.group) + '">' + esc(gname(e.group)) + '</span>' +
-          (bc.mismatch ? ' <span class="warn" title="' + esc(T('data_conflict')) + '">⚠</span>' : '') + '</td>' +
-        '<td>' + e.targetPct + '%</td>' +
-        '<td>' + e.attendance + '%</td>' +
-        '<td>' + e.lateDays + '</td>' +
-        '<td>' + e.managerScore + '/10</td>' +
-        '<td>' + (d ? '<b style="color:' + UI.tone(d.overall) + '">' + d.overall + '</b>' : '<span class="muted">' + esc(T('no_assessment')) + '</span>') + '</td>' +
-        '<td><button class="btn btn-xs" data-open="' + e.id + '">' + esc(T('view')) + '</button></td></tr>';
+          (cc.conflict ? ' <span class="warn" title="' + esc(T('review_class')) + '">⚠</span>' : '') + '</td>' +
+        '<td>' + num(e.targetPct, '%') + '</td>' +
+        '<td>' + num(e.attendance, '%') + '</td>' +
+        '<td>' + num(e.lateDays) + '</td>' +
+        '<td>' + (e.managerScore == null ? '<span class="muted">—</span>' : e.managerScore + '/10') + '</td>' +
+        '<td>' + (d ? '<b style="color:' + UI.tone(d.overall) + '">' + d.overall + '</b>'
+                    : (e.nc22 ? '<span class="chip">22 ✓</span>' : '<span class="muted">' + esc(T('no_assessment')) + '</span>')) + '</td>' +
+        '<td>' + (e.codeSha || e.codeFnv
+          ? '<span class="pill" style="--c:#10b981">🔑 ' + esc(T('code_set')) + '</span>'
+          : '<span class="pill" style="--c:#ef4444">' + esc(T('code_none')) + '</span>') + '</td>' +
+        '<td><button class="btn btn-xs" data-code="' + e.id + '">🔑</button> ' +
+            '<button class="btn btn-xs" data-open="' + e.id + '">' + esc(T('view')) + '</button></td></tr>';
     }).join('');
 
-    return head(T('nav_emp'), UI.getLang() === 'he' ? 'סיווג מנהל + נתונים אובייקטיביים + DNA' : 'تصنيف المدير + بيانات موضوعية + DNA',
+    return head(T('nav_emp'),
+      s.employees.length + ' ' + (UI.getLang() === 'he' ? 'עובדים' : 'موظفاً') + ' · ' +
+      (UI.getLang() === 'he' ? 'הזן נתוני מכירות אמיתיים ואז סווג' : 'أدخل أرقام المبيعات الحقيقية ثم صنّف'),
       '<button class="btn btn-primary" id="addEmp">+ ' + esc(T('add_emp')) + '</button>') +
+      '<div class="card"><div class="chips pick">' +
+        '<button class="chip pickable ' + (empBranch ? '' : 'on') + '" data-br="">' +
+          (UI.getLang() === 'he' ? 'הכל' : 'الكل') + ' <small>' + s.employees.length + '</small></button>' +
+        branches.map(function (b) {
+          var n = s.employees.filter(function (e) { return e.branch === b; }).length;
+          return '<button class="chip pickable ' + (empBranch === b ? 'on' : '') + '" data-br="' + esc(b) + '">' +
+            esc(b) + ' <small>' + n + '</small></button>';
+        }).join('') + '</div></div>' +
       '<div class="card"><table class="tbl"><thead><tr>' +
-      ['name', 'dept', 'perf', 'target_pct', 'attendance', 'late', 'mgr_score', 'dna_score', ''].map(function (k) {
+      ['name', 'branch_col', 'perf', 'target_pct', 'attendance', 'late', 'mgr_score', 'dna_score', 'code_col', ''].map(function (k) {
         return '<th>' + (k ? esc(T(k)) : '') + '</th>';
       }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
@@ -176,16 +205,63 @@
     UI.$$('[data-open]', m).forEach(function (b) {
       b.onclick = function () { view = { type: 'emp', id: b.dataset.open }; body(); };
     });
+    UI.$$('[data-br]', m).forEach(function (b) {
+      b.onclick = function () { empBranch = b.dataset.br || null; body(); };
+    });
+    UI.$$('[data-code]', m).forEach(function (b) {
+      b.onclick = function () {
+        var e = st().employees.filter(function (x) { return x.id === b.dataset.code; })[0];
+        if (e) codeModal(e);
+      };
+    });
     var add = document.getElementById('addEmp');
     if (add) add.onclick = function () { empForm(null); };
   }
 
+  /* ---- private login code: generated here, shown once, stored hashed ---- */
+  function codeModal(e) {
+    var code = Store.randomCode();
+    var node = UI.el('<div class="modal-bg"><div class="modal">' +
+      '<h3>🔑 ' + esc(T('set_code')) + ' — ' + esc(e.name) + '</h3>' +
+      '<div class="form">' +
+        '<label class="fld"><span>' + esc(T('code_col')) + '</span>' +
+        '<input id="cdVal" value="' + esc(code) + '" style="text-transform:uppercase;letter-spacing:2px;font-family:Orbitron,monospace"></label>' +
+        '<p class="muted sm">🔒 ' + esc(T('code_once')) + '</p>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-primary" id="cdSave">' + esc(T('save')) + '</button>' +
+        '<button class="btn" id="cdGen">🎲 ' + esc(T('regenerate')) + '</button>' +
+        '<button class="btn" id="cdCopy">⧉ ' + esc(T('copy')) + '</button>' +
+        '<button class="btn btn-ghost" id="cdCancel">' + esc(T('cancel')) + '</button>' +
+      '</div></div></div>');
+    document.body.appendChild(node);
+    var field = node.querySelector('#cdVal');
+    node.querySelector('#cdCancel').onclick = function () { node.remove(); };
+    node.querySelector('#cdGen').onclick = function () { field.value = Store.randomCode(); };
+    node.querySelector('#cdCopy').onclick = function () {
+      field.select();
+      if (root.navigator.clipboard) root.navigator.clipboard.writeText(field.value);
+      else document.execCommand('copy');
+      UI.toast(T('copied'));
+    };
+    node.querySelector('#cdSave').onclick = function () {
+      var v = String(field.value || '').trim().toUpperCase();
+      if (v.length < 6) return UI.toast(T('pin_short'), 'bad');
+      Store.setEmployeeCode(e.id, v, function () {
+        node.remove();
+        UI.toast('🔑 ' + T('code_saved') + ' — ' + v);
+        body();
+      });
+    };
+  }
+
   function empForm(e) {
     var isNew = !e;
-    e = e || { name: '', code: '', dept: 'B2B', targetPct: 100, attendance: 95, lateDays: 0, managerScore: 7, monthsAbove: 6, monthsTotal: 12, group: 'medium', startDate: '2026-01-01' };
+    e = e || { name: '', branch: '', dept: '', targetPct: null, attendance: null, lateDays: null,
+               managerScore: null, monthsAbove: null, monthsTotal: 12, group: null, startDate: '' };
     var h = '<div class="modal-bg"><div class="modal"><h3>' + esc(isNew ? T('add_emp') : e.name) + '</h3>' +
       '<div class="form">' +
-      f('name', T('full_name'), e.name) + f('code', T('emp_code'), e.code || '') +
+      f('name', T('full_name'), e.name) + f('branch', T('branch_col'), e.branch || '') +
       f('dept', T('dept'), e.dept) + f('startDate', UI.getLang() === 'he' ? 'תאריך תחילה' : 'تاريخ البدء', e.startDate, 'date') +
       f('targetPct', T('target_pct'), e.targetPct, 'number') +
       f('monthsAbove', UI.getLang() === 'he' ? 'חודשים מעל היעד' : 'أشهر فوق الهدف', e.monthsAbove, 'number') +
@@ -193,8 +269,8 @@
       f('lateDays', T('late'), e.lateDays, 'number') +
       f('managerScore', T('mgr_score'), e.managerScore, 'number') +
       '<label class="fld"><span>' + esc(T('perf')) + '</span><select data-k="group">' +
-        ['strong', 'medium', 'low'].map(function (g) {
-          return '<option value="' + g + '"' + (e.group === g ? ' selected' : '') + '>' + esc(gname(g)) + '</option>';
+        ['', 'strong', 'medium', 'low'].map(function (g) {
+          return '<option value="' + g + '"' + ((e.group || '') === g ? ' selected' : '') + '>' + esc(gname(g || null)) + '</option>';
         }).join('') + '</select></label>' +
       '</div><div class="modal-actions">' +
       '<button class="btn btn-primary" id="mSave">' + esc(T('save')) + '</button>' +
@@ -209,7 +285,9 @@
       var patch = {};
       UI.$$('[data-k]', node).forEach(function (i) {
         var v = i.value;
-        patch[i.dataset.k] = i.type === 'number' ? Number(v) : v;
+        if (i.type === 'number') patch[i.dataset.k] = v === '' ? null : Number(v);
+        else if (i.dataset.k === 'group') patch[i.dataset.k] = v || null;
+        else patch[i.dataset.k] = v;
       });
       if (!patch.name) return UI.toast(T('fill_all'), 'bad');
       if (isNew) { patch.monthsTotal = 12; Store.addEmployee(patch); }
@@ -227,16 +305,17 @@
     var d = empDNA(e), gs = Engine.groupStats(s.employees), bc = Engine.benchmarkCheck(e);
     var w = Engine.activeWeights(s);
     var out = '<button class="btn btn-ghost btn-xs" id="back">‹ ' + esc(T('back')) + '</button>' +
-      head(e.name, e.dept + ' · ' + e.code + ' · ' + e.startDate,
+      head(e.name, [e.branch, e.dept, e.startDate].filter(Boolean).join(' · ') || '—',
         '<div><button class="btn" id="editEmp">✎</button> <button class="btn" onclick="window.print()">' + esc(T('print')) + '</button></div>');
     out += perfBlock(e);
     out += '<div class="grid2">';
     out += '<div class="card"><h3>PERFORMANCE</h3>' +
-      '<div class="kpis sm">' + kpi('🎯', e.targetPct + '%', T('target_pct'), '#3b82f6') +
-      kpi('📅', e.monthsAbove + '/' + e.monthsTotal, UI.getLang() === 'he' ? 'חודשים מעל היעד' : 'أشهر فوق الهدف', '#10b981') +
-      kpi('🕘', e.attendance + '%', T('attendance'), '#22d3ee') +
-      kpi('⏰', e.lateDays, T('late'), '#f59e0b') +
-      kpi('⭐', e.managerScore + '/10', T('mgr_score'), '#8b5cf6') + '</div>' +
+      '<div class="kpis sm">' + kpi('🎯', e.targetPct == null ? '—' : e.targetPct + '%', T('target_pct'), '#3b82f6') +
+      kpi('📅', e.monthsAbove == null ? '—' : e.monthsAbove + '/' + e.monthsTotal, UI.getLang() === 'he' ? 'חודשים מעל היעד' : 'أشهر فوق الهدف', '#10b981') +
+      kpi('🕘', e.attendance == null ? '—' : e.attendance + '%', T('attendance'), '#22d3ee') +
+      kpi('⏰', e.lateDays == null ? '—' : e.lateDays, T('late'), '#f59e0b') +
+      kpi('⭐', e.managerScore == null ? '—' : e.managerScore + '/10', T('mgr_score'), '#8b5cf6') + '</div>' +
+      ((e.targetPct == null && !(e.history || []).length) ? '<div class="alert warn-box">' + esc(T('no_emp_data')) + '</div>' : '') +
       '</div>';
 
     if (d) {
@@ -352,7 +431,11 @@
       '<div class="card"><table class="tbl"><thead><tr>' +
       ['name', 'date', 'stage', 'full_match', 'sim_strong', 'consistency_idx', 'focus_score', 'flags', 'status', ''].map(function (k) {
         return '<th>' + (k ? esc(T(k)) : '') + '</th>';
-      }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+      }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table>' +
+      (rows ? '' : '<p class="muted" style="padding:14px 4px">' + esc(LL(
+        'لا يوجد مرشّحون بعد. أي شخص يفتح الرابط ويختار «أنا مرشّح جديد» ويكمل التحدي سيظهر هنا تلقائياً مع تقريره الكامل.',
+        'אין עדיין מועמדים. כל מי שייכנס לקישור, יבחר «אני מועמד חדש» ויסיים את האתגר יופיע כאן אוטומטית עם הדוח המלא.')) + '</p>') +
+      '</div>';
   }
 
   function stageTag(c) {
@@ -861,7 +944,7 @@
       '<th>' + esc(T('name')) + '</th><th>' + esc(T('perf')) + '</th><th>FOCUS</th><th>👁</th><th>❌</th><th>⚡</th><th></th></tr></thead><tbody>' +
       s.employees.map(function (e) {
         var f = e.focus;
-        return '<tr><td>' + esc(e.name) + '</td>' +
+        return '<tr><td>' + esc(e.name) + (e.branch ? ' <small class="muted">' + esc(e.branch) + '</small>' : '') + '</td>' +
           '<td><span class="pill" style="--c:' + gcolor(e.group) + '">' + esc(gname(e.group)) + '</span></td>' +
           '<td>' + (f ? '<b style="color:' + UI.tone(f.focus) + '">' + f.focus + '</b>' : '<span class="muted">—</span>') + '</td>' +
           '<td>' + (f ? f.raw.found + '/' + f.raw.total : '—') + '</td>' +
