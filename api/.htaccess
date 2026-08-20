@@ -1,0 +1,11 @@
+# SALES DNA — keep the config and setup marker unreachable over HTTP.
+# Filesystem includes from PHP are unaffected by these rules.
+<FilesMatch "^(config\.php|config\.sample\.php|seed\.php|lib\.php|\.setup-owner)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

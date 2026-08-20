@@ -6,3 +6,6 @@ Thumbs.db
 
 # backend secrets — never commit
 api/config.php
+
+# setup wizard marker
+api/.setup-owner
