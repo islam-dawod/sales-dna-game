@@ -79,20 +79,56 @@ function cfg() {
   return $c;
 }
 
+function db_dsn() {
+  $c = cfg();
+  return 'mysql:host=' . $c['db_host'] . ';port=' . (isset($c['db_port']) ? $c['db_port'] : 3306) .
+         ';dbname=' . $c['db_name'] . ';charset=utf8mb4';
+}
+
+/* Connection test that hands back the reason instead of dying, so install.php
+   and health can say what is actually wrong. */
+function db_probe() {
+  $c = cfg();
+  try {
+    new PDO(db_dsn(), $c['db_user'], $c['db_pass'], array(
+      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_TIMEOUT => 6
+    ));
+    return array('ok' => true, 'error' => '');
+  } catch (Exception $e) {
+    return array('ok' => false, 'error' => $e->getMessage());
+  }
+}
+
+/* The real MySQL message is only ever exposed while installation is still
+   open. Once allow_install is false nothing is revealed. */
+function db_diag($msg) {
+  $c = cfg();
+  if (empty($c['allow_install'])) return array();
+  return array(
+    'detail' => $msg,
+    'tried'  => array(
+      'host' => $c['db_host'],
+      'port' => isset($c['db_port']) ? (int) $c['db_port'] : 3306,
+      'database' => $c['db_name'],
+      'user' => $c['db_user'],
+      'password_length' => strlen((string) $c['db_pass'])
+    )
+  );
+}
+
 function db() {
   static $pdo = null;
   if ($pdo !== null) return $pdo;
   $c = cfg();
-  $dsn = 'mysql:host=' . $c['db_host'] . ';port=' . (isset($c['db_port']) ? $c['db_port'] : 3306) .
-         ';dbname=' . $c['db_name'] . ';charset=utf8mb4';
   try {
-    $pdo = new PDO($dsn, $c['db_user'], $c['db_pass'], array(
+    $pdo = new PDO(db_dsn(), $c['db_user'], $c['db_pass'], array(
       PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
       PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
       PDO::ATTR_EMULATE_PREPARES => false
     ));
   } catch (Exception $e) {
-    fail('db_connect_failed', 500);
+    fail('db_connect_failed', 500, db_diag($e->getMessage()));
   }
   return $pdo;
 }

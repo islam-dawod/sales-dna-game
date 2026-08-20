@@ -49,6 +49,26 @@ if (empty($c['allow_install']) && !$force) {
   exit;
 }
 
+/* ---------- 0. can we even reach the database? ---------- */
+$probe = db_probe();
+if (!$probe['ok']) {
+  $d = db_diag($probe['error']);
+  $t = isset($d['tried']) ? $d['tried'] : array();
+  echo '<div class="box"><span class="bad">✗ فشل الاتصال بقاعدة البيانات.</span><br>رسالة MySQL:<pre>'
+     . htmlspecialchars($probe['error'], ENT_QUOTES, 'UTF-8') . '</pre>'
+     . 'القيم المقروءة من <code>config.php</code>:<pre>'
+     . 'db_host = ' . htmlspecialchars(isset($t['host']) ? $t['host'] : '?', ENT_QUOTES, 'UTF-8') . "\n"
+     . 'db_port = ' . (isset($t['port']) ? (int) $t['port'] : 0) . "\n"
+     . 'db_name = ' . htmlspecialchars(isset($t['database']) ? $t['database'] : '?', ENT_QUOTES, 'UTF-8') . "\n"
+     . 'db_user = ' . htmlspecialchars(isset($t['user']) ? $t['user'] : '?', ENT_QUOTES, 'UTF-8') . "\n"
+     . 'db_pass = ' . (isset($t['password_length']) ? $t['password_length'] . ' حرفاً' : '?')
+     . '</pre>'
+     . '<span class="warn">قارن هذه القيم بما يعرضه Plesk بالضبط.</span> '
+     . 'الرقم <code>1045</code> يعني كلمة مرور أو مستخدماً خاطئاً، و<code>1049</code> يعني أن اسم القاعدة غير موجود '
+     . '(وهو حسّاس لحالة الأحرف: <code>DNA</code> ليست <code>dna</code>).</div>';
+  exit;
+}
+
 /* ---------- 1. schema ---------- */
 try {
   migrate();
