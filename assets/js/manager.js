@@ -1247,11 +1247,21 @@
       var f = ev.target.files[0]; if (!f) return;
       var r = new FileReader();
       r.onload = function () {
-        try {
-          var data = JSON.parse(r.result);
-          localStorage.setItem(Store.KEY, JSON.stringify(data)); Store.load();
-          UI.toast('✔'); body();
-        } catch (e) { UI.toast('JSON ✗', 'bad'); }
+        var data;
+        try { data = JSON.parse(r.result); } catch (e) { return UI.toast('JSON ✗', 'bad'); }
+        if (!data || typeof data !== 'object') return UI.toast('JSON ✗', 'bad');
+
+        /* In server mode writing to localStorage would change nothing that
+           anyone else can see, so the file goes to the database instead. */
+        if (srv()) {
+          return push(API.importState(data).then(function (res) {
+            var n = (res && res.report) || {};
+            UI.toast('✔ ' + LL('مرشحون جدد: ', 'new candidates: ') + (n.candidatesAdded || 0) +
+                     ' · ' + LL('موظفون محدَّثون: ', 'employees updated: ') + (n.employeesUpdated || 0));
+          }), null);
+        }
+        localStorage.setItem(Store.KEY, JSON.stringify(data)); Store.load();
+        UI.toast('✔'); body();
       };
       r.readAsText(f);
     };

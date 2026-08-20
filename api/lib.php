@@ -388,3 +388,71 @@ function load_settings() {
   if (!is_array($s)) $s = array();
   return array_merge(default_settings(), $s);
 }
+
+/* ---------------- payload cleaners ----------------
+   Shared by submit/assessment, submit/focus and import/state so a record
+   written by an import is validated exactly like one written by a player. */
+function clean_answers($answers, $max = 200) {
+  if (!is_array($answers)) return array();
+  $clean = array();
+  foreach ($answers as $a) {
+    if (count($clean) >= $max) break;
+    if (!is_array($a) || !isset($a['qid'])) continue;
+    $clean[] = array(
+      'qid'   => s($a['qid'], 24),
+      'opt'   => intOrNull(isset($a['opt']) ? $a['opt'] : null),
+      's'     => isset($a['s']) ? intOrNull($a['s']) : null,
+      'f'     => isset($a['f']) && $a['f'] ? s($a['f'], 24) : null,
+      'zone'  => isset($a['zone']) ? s($a['zone'], 16) : null,
+      'trait' => isset($a['trait']) ? s($a['trait'], 20) : null,
+      'lvl'   => isset($a['lvl']) ? intOrNull($a['lvl']) : null
+    );
+  }
+  return $clean;
+}
+
+/* returns null when the payload is not a usable focus result */
+function clean_focus($res) {
+  if (!is_array($res) || !isset($res['focus'])) return null;
+  $focus = intOrNull($res['focus']);
+  if ($focus === null || $focus < 0 || $focus > 100) return null;
+  return array(
+    'focus' => $focus,
+    'sub'   => isset($res['sub']) && is_array($res['sub']) ? $res['sub'] : array(),
+    'raw'   => isset($res['raw']) && is_array($res['raw']) ? $res['raw'] : array(),
+    'completedAt' => (isset($res['completedAt']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $res['completedAt']))
+                      ? $res['completedAt'] : date('Y-m-d')
+  );
+}
+
+function ymd_or_null($v) {
+  $v = is_string($v) ? trim($v) : '';
+  return preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : null;
+}
+
+/* writes the newest assessment for a subject, replacing an earlier one for the
+   same model so a repeated import does not stack duplicates */
+function put_assessment($type, $id, $model, $payload) {
+  $clean = clean_answers(isset($payload['answers']) ? $payload['answers'] : null);
+  if (!count($clean)) return false;
+  $del = db()->prepare('DELETE FROM assessments WHERE subject_type = ? AND subject_id = ? AND model = ?');
+  $del->execute(array($type, $id, $model));
+  $st = db()->prepare('INSERT INTO assessments (subject_type, subject_id, model, answers, xp, badges, completed_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)');
+  $st->execute(array($type, $id, $model,
+    json_encode($clean, JSON_UNESCAPED_UNICODE),
+    intOrNull(isset($payload['xp']) ? $payload['xp'] : 0) ?: 0,
+    json_encode(isset($payload['badges']) && is_array($payload['badges']) ? $payload['badges'] : array()),
+    (ymd_or_null(isset($payload['completedAt']) ? $payload['completedAt'] : null) ?: date('Y-m-d')) . ' 00:00:00'));
+  return true;
+}
+
+function put_focus($type, $id, $res) {
+  $payload = clean_focus($res);
+  if ($payload === null) return false;
+  $del = db()->prepare('DELETE FROM focus_results WHERE subject_type = ? AND subject_id = ?');
+  $del->execute(array($type, $id));
+  $st = db()->prepare('INSERT INTO focus_results (subject_type, subject_id, focus, payload) VALUES (?, ?, ?, ?)');
+  $st->execute(array($type, $id, $payload['focus'], json_encode($payload, JSON_UNESCAPED_UNICODE)));
+  return true;
+}

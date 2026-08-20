@@ -88,10 +88,24 @@
   function setServerMode(on) { serverMode = !!on; }
   function isServerMode() { return serverMode; }
 
+  /* Fill in every settings key from the defaults without overwriting what was
+     saved. An imported file, an older export or a trimmed server payload can
+     be missing a key, and a missing one — thresholds, for instance — breaks
+     the manager console rather than degrading. Nested objects are merged too. */
+  function normalizeSettings(saved) {
+    var d = defaults().settings;
+    var out = Object.assign({}, d, saved || {});
+    out.thresholds = Object.assign({}, d.thresholds, (saved && saved.thresholds) || {});
+    /* the app ships Arabic and English only; a browser that had Hebrew
+       selected still has lang:'he' saved here */
+    if (out.lang !== 'ar' && out.lang !== 'en') out.lang = 'ar';
+    return out;
+  }
+
   /* replace the in-memory state with what the server sent */
   function hydrate(payload) {
     state = state || defaults();
-    if (payload.settings) state.settings = Object.assign(defaults().settings, payload.settings);
+    if (payload.settings) state.settings = normalizeSettings(payload.settings);
     if (payload.employees) state.employees = payload.employees;
     if (payload.candidates) state.candidates = payload.candidates;
     return state;
@@ -122,14 +136,10 @@
       state = raw ? JSON.parse(raw) : null;
     } catch (e) { state = null; }
     if (!state || state.v !== 5) { state = defaults(); seed(); save(); }
-    if (state.settings.focusEnabled === undefined) state.settings.focusEnabled = true;
-    /* the app ships Arabic and English only. A browser that had Hebrew
-       selected still has lang:'he' saved here, so anything unsupported
-       falls back instead of leaving the UI in a half-translated state. */
-    if (state.settings.lang !== 'ar' && state.settings.lang !== 'en') {
-      state.settings.lang = 'ar';
-      save();
-    }
+    state.settings = normalizeSettings(state.settings);
+    if (!Array.isArray(state.employees)) state.employees = [];
+    if (!Array.isArray(state.candidates)) state.candidates = [];
+    save();
     /* migrate away from any legacy plaintext pin */
     if (state.settings.pin !== undefined) { delete state.settings.pin; save(); }
     if (!state.settings.pinSha && !state.settings.pinFnv) {

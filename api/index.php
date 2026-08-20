@@ -172,19 +172,7 @@ case 'submit/assessment':
 
   $answers = inp('answers');
   if (!is_array($answers) || count($answers) < 1 || count($answers) > 200) fail('bad_answers');
-  $clean = array();
-  foreach ($answers as $a) {
-    if (!is_array($a) || !isset($a['qid'])) continue;
-    $clean[] = array(
-      'qid' => s($a['qid'], 24),
-      'opt' => intOrNull(isset($a['opt']) ? $a['opt'] : null),
-      's' => isset($a['s']) ? intOrNull($a['s']) : null,
-      'f' => isset($a['f']) && $a['f'] ? s($a['f'], 24) : null,
-      'zone' => isset($a['zone']) ? s($a['zone'], 16) : null,
-      'trait' => isset($a['trait']) ? s($a['trait'], 20) : null,
-      'lvl' => isset($a['lvl']) ? intOrNull($a['lvl']) : null
-    );
-  }
+  $clean = clean_answers($answers);
   if (!count($clean)) fail('bad_answers');
 
   $st = db()->prepare('INSERT INTO assessments (subject_type, subject_id, model, answers, xp, badges)
@@ -205,16 +193,11 @@ case 'submit/focus':
   $s = require_scope(array('employee', 'candidate'));
   $res = inp('result');
   if (!is_array($res) || !isset($res['focus'])) fail('bad_result');
-  $focus = intOrNull($res['focus']);
-  if ($focus === null || $focus < 0 || $focus > 100) fail('bad_focus');
-  $payload = array(
-    'focus' => $focus,
-    'sub' => isset($res['sub']) && is_array($res['sub']) ? $res['sub'] : array(),
-    'raw' => isset($res['raw']) && is_array($res['raw']) ? $res['raw'] : array(),
-    'completedAt' => date('Y-m-d')
-  );
+  $payload = clean_focus($res);
+  if ($payload === null) fail('bad_focus');
+  $payload['completedAt'] = date('Y-m-d');   /* a live run is always dated today */
   $st = db()->prepare('INSERT INTO focus_results (subject_type, subject_id, focus, payload) VALUES (?, ?, ?, ?)');
-  $st->execute(array($s['scope'], $s['subject_id'], $focus, json_encode($payload, JSON_UNESCAPED_UNICODE)));
+  $st->execute(array($s['scope'], $s['subject_id'], $payload['focus'], json_encode($payload, JSON_UNESCAPED_UNICODE)));
   if ($s['scope'] === 'candidate') {
     $u = db()->prepare('UPDATE candidates SET stage = GREATEST(stage, 3) WHERE id = ?');
     $u->execute(array($s['subject_id']));
@@ -423,6 +406,135 @@ case 'manager/pass':
   setting_set('manager_pass_hash', password_hash($new, PASSWORD_DEFAULT));
   setting_set('manager_pass_sha', '');
   out(array('ok' => true));
+
+/* ============================================================
+   MANAGER — import a local-mode export into the database
+
+   The app runs per-browser until the backend is live, so a manager can
+   arrive with candidates that exist only in one browser. This takes that
+   exported JSON and writes it centrally.
+
+   Deliberately narrow: it never reads login codes, code hashes or the
+   manager passphrase out of the file, and it never deletes a central
+   record. Employees are matched by id and only their metrics are
+   updated — the roster itself is not created from a file.
+   ============================================================ */
+case 'import/state':
+  need_post();
+  require_scope('manager');
+  migrate();
+
+  $emps = inp('employees');
+  $cands = inp('candidates');
+  if (!is_array($emps)) $emps = array();
+  if (!is_array($cands)) $cands = array();
+  if (count($emps) > 300 || count($cands) > 2000) fail('payload_too_large', 413);
+
+  $rep = array(
+    'employeesUpdated' => 0, 'employeesSkipped' => 0,
+    'candidatesAdded' => 0, 'candidatesExisting' => 0,
+    'assessments' => 0, 'focus' => 0, 'reviews' => 0, 'history' => 0
+  );
+
+  /* ---------- employees: metrics only, matched by id ---------- */
+  $find = db()->prepare('SELECT id FROM employees WHERE id = ? LIMIT 1');
+  $upd = db()->prepare('UPDATE employees SET branch = ?, dept = ?, start_date = ?, target_pct = ?,
+                         months_above = ?, months_total = ?, attendance = ?, late_days = ?,
+                         manager_score = ?, grp = ?, updated_at = NOW() WHERE id = ?');
+  $histDel = db()->prepare('DELETE FROM employee_history WHERE emp_id = ?');
+  $histIns = db()->prepare('INSERT INTO employee_history (emp_id, ym, pct) VALUES (?, ?, ?)
+                            ON DUPLICATE KEY UPDATE pct = VALUES(pct)');
+  foreach ($emps as $e) {
+    if (!is_array($e) || empty($e['id'])) continue;
+    $id = s($e['id'], 24);
+    $find->execute(array($id));
+    if (!$find->fetch()) { $rep['employeesSkipped']++; continue; }
+
+    $grp = s(isset($e['group']) ? $e['group'] : '', 10);
+    if (!in_array($grp, array('strong', 'medium', 'low'), true)) $grp = null;
+    $upd->execute(array(
+      s(isset($e['branch']) ? $e['branch'] : '', 60),
+      s(isset($e['dept']) ? $e['dept'] : '', 60),
+      s(isset($e['startDate']) ? $e['startDate'] : '', 20),
+      intOrNull(isset($e['targetPct']) ? $e['targetPct'] : null),
+      intOrNull(isset($e['monthsAbove']) ? $e['monthsAbove'] : null),
+      intOrNull(isset($e['monthsTotal']) ? $e['monthsTotal'] : null) ?: 12,
+      intOrNull(isset($e['attendance']) ? $e['attendance'] : null),
+      intOrNull(isset($e['lateDays']) ? $e['lateDays'] : null),
+      intOrNull(isset($e['managerScore']) ? $e['managerScore'] : null),
+      $grp, $id));
+    $rep['employeesUpdated']++;
+
+    if (isset($e['history']) && is_array($e['history']) && count($e['history'])) {
+      $histDel->execute(array($id));
+      foreach ($e['history'] as $h) {
+        if (!is_array($h) || !isset($h['m'])) continue;
+        $ym = s($h['m'], 7);
+        $pct = intOrNull(isset($h['pct']) ? $h['pct'] : null);
+        if (!preg_match('/^\d{4}-\d{2}$/', $ym) || $pct === null) continue;
+        $histIns->execute(array($id, $ym, max(0, min(400, $pct))));
+        $rep['history']++;
+      }
+    }
+    if (isset($e['assessment']) && is_array($e['assessment'])
+        && put_assessment('employee', $id, 'emp36', $e['assessment'])) $rep['assessments']++;
+    if (isset($e['nc22']) && is_array($e['nc22'])
+        && put_assessment('employee', $id, 'nc22', $e['nc22'])) $rep['assessments']++;
+    if (isset($e['focus']) && is_array($e['focus'])
+        && put_focus('employee', $id, $e['focus'])) $rep['focus']++;
+  }
+
+  /* ---------- candidates: inserted when the id is new ---------- */
+  $findC = db()->prepare('SELECT id FROM candidates WHERE id = ? LIMIT 1');
+  $insC = db()->prepare('INSERT INTO candidates (id, name, phone, email, stage, decision, hired_at, created_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  $insR = db()->prepare('INSERT INTO candidate_reviews (cand_id, day, payload) VALUES (?, ?, ?)
+                         ON DUPLICATE KEY UPDATE payload = VALUES(payload)');
+  foreach ($cands as $c) {
+    if (!is_array($c) || empty($c['id'])) continue;
+    $id = s($c['id'], 24);
+    $name = s(isset($c['name']) ? $c['name'] : '', 120);
+    if ($name === '') continue;
+
+    $findC->execute(array($id));
+    if ($findC->fetch()) {
+      $rep['candidatesExisting']++;
+    } else {
+      $dec = s(isset($c['decision']) ? $c['decision'] : '', 16);
+      if (!in_array($dec, array('interview', 'hired', 'reject'), true)) $dec = null;
+      $stage = intOrNull(isset($c['stage']) ? $c['stage'] : null);
+      if ($stage === null || $stage < 1 || $stage > 8) $stage = 1;
+      $created = ymd_or_null(isset($c['createdAt']) ? $c['createdAt'] : null) ?: date('Y-m-d');
+      $insC->execute(array($id, $name,
+        s(isset($c['phone']) ? $c['phone'] : '', 40),
+        s(isset($c['email']) ? $c['email'] : '', 120),
+        $stage, $dec, ymd_or_null(isset($c['hiredAt']) ? $c['hiredAt'] : null),
+        $created . ' 00:00:00'));
+      $rep['candidatesAdded']++;
+    }
+
+    if (isset($c['nc']) && is_array($c['nc'])
+        && put_assessment('candidate', $id, 'nc25', $c['nc'])) $rep['assessments']++;
+    if (isset($c['focus']) && is_array($c['focus'])
+        && put_focus('candidate', $id, $c['focus'])) $rep['focus']++;
+
+    if (isset($c['reviews']) && is_array($c['reviews'])) {
+      foreach ($c['reviews'] as $rv) {
+        if (!is_array($rv)) continue;
+        $day = intOrNull(isset($rv['day']) ? $rv['day'] : null);
+        if (!in_array($day, array(30, 90, 180), true)) continue;
+        $clean = array();
+        foreach (array('targetPct', 'attendance', 'discipline', 'learning', 'coachability',
+                       'effort', 'managerRating', 'sales', 'persistence') as $k) {
+          if (isset($rv[$k])) $clean[$k] = intOrNull($rv[$k]);
+        }
+        $insR->execute(array($id, $day, json_encode($clean)));
+        $rep['reviews']++;
+      }
+    }
+  }
+
+  out(array('ok' => true, 'report' => $rep));
 
 default:
   fail('unknown_route: ' . $r, 404);

@@ -92,6 +92,13 @@
   function review(id, day, data) { return req('candidate/review', { id: id, day: day, data: data }); }
   function deleteCandidate(id) { return req('candidate/delete', { id: id }); }
   function saveSettings(settings) { return req('settings/save', { settings: settings }); }
+  /* push a local-mode export into the database (manager only) */
+  function importState(data) {
+    return req('import/state', {
+      employees: (data && data.employees) || [],
+      candidates: (data && data.candidates) || []
+    });
+  }
   function setManagerPass(pass) { return req('manager/pass', { pass: pass }); }
   function managerFocus(subjectType, subjectId, result) {
     return req('manager/focus', { subjectType: subjectType, subjectId: subjectId, result: result });
@@ -105,6 +112,7 @@
     saveAssessment: saveAssessment, saveFocus: saveFocus,
     fetchState: fetchState, saveEmployee: saveEmployee, deleteEmployee: deleteEmployee,
     setCode: setCode, decision: decision, review: review, deleteCandidate: deleteCandidate,
-    saveSettings: saveSettings, setManagerPass: setManagerPass, managerFocus: managerFocus
+    saveSettings: saveSettings, setManagerPass: setManagerPass, managerFocus: managerFocus,
+    importState: importState
   };
 })(window);
