@@ -175,12 +175,14 @@ case 'submit/assessment':
   $clean = clean_answers($answers);
   if (!count($clean)) fail('bad_answers');
 
-  $st = db()->prepare('INSERT INTO assessments (subject_type, subject_id, model, answers, xp, badges)
-                       VALUES (?, ?, ?, ?, ?, ?)');
+  $levels = clean_levels(inp('levels'));
+  $st = db()->prepare('INSERT INTO assessments (subject_type, subject_id, model, answers, xp, badges, timing)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)');
   $st->execute(array($s['scope'], $s['subject_id'], $model,
     json_encode($clean, JSON_UNESCAPED_UNICODE),
     intOrNull(inp('xp')) ?: 0,
-    json_encode(is_array(inp('badges')) ? inp('badges') : array())));
+    json_encode(is_array(inp('badges')) ? inp('badges') : array()),
+    count($levels) ? json_encode($levels, JSON_UNESCAPED_UNICODE) : null));
 
   if ($s['scope'] === 'candidate') {
     $u = db()->prepare('UPDATE candidates SET stage = GREATEST(stage, 2) WHERE id = ?');

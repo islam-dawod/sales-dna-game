@@ -38,6 +38,44 @@
         body();
       });
   }
+  /* ---------- time pressure ----------
+     Reads the clock report stored with an assessment. Completeness, speed and
+     the score stay three separate numbers: nothing here is folded into MATCH,
+     and slower is not treated as weaker (see T('speed_note')). */
+  function timingCard(payload, title) {
+    var tm = Engine.timingStats(payload);
+    if (!tm) return '';
+    var secs = function (ms) { return ms == null ? '—' : (ms / 1000).toFixed(1) + 's'; };
+    var band = Engine.completenessBand(tm.completeness);
+    var bandColor = band === 'high' ? '#10b981' : band === 'medium' ? '#f59e0b' : '#ef4444';
+
+    var rows = tm.levels.map(function (b) {
+      return '<tr><td><b>' + (b.n ? 'L' + b.n + ' · ' : '') + esc(b.code || b.key) + '</b></td>' +
+        '<td' + (b.answered < b.total ? ' class="tm-out"' : '') + '>' + b.answered + '/' + b.total + '</td>' +
+        '<td dir="ltr">' + esc(Engine.mmss(b.seconds)) + (b.limit ? ' / ' + esc(Engine.mmss(b.limit)) : '') + '</td>' +
+        '<td>' + (b.timedOut ? '<span class="tm-out">⏱ ' + esc(T('times_up')) + '</span>' : '✓') + '</td></tr>';
+    }).join('');
+
+    return '<div class="card"><h3>⏱ ' + esc(title || T('timing_title')) + '</h3>' +
+      '<div class="kpis">' +
+        kpi('📋', tm.completeness == null ? '—' : tm.completeness + '%',
+            T('completeness') + ' (' + tm.answered + '/' + tm.asked + ')', bandColor) +
+        kpi('🚫', tm.unanswered, T('unanswered'), tm.unanswered ? '#ef4444' : '#8ea0c4') +
+        kpi('⚡', secs(tm.avgMs), T('avg_response'), '#22d3ee') +
+        kpi('⏳', tm.totalSeconds == null ? '—' : Engine.mmss(tm.totalSeconds), T('total_q_time'), '#3b82f6') +
+        (tm.timed ? kpi('⏱', tm.timedOutLevels, T('timed_out_lv'), tm.timedOutLevels ? '#f59e0b' : '#8ea0c4') : '') +
+      '</div>' +
+      (tm.avgMs != null
+        ? '<p class="muted sm" dir="ltr">' + esc(T('fastest')) + ': ' + secs(tm.fastestMs) +
+          ' · ' + esc(T('slowest')) + ': ' + secs(tm.slowestMs) + '</p>' : '') +
+      (band === 'low' ? '<div class="alert warn-box">⚠ ' + esc(T('completeness_low')) + '</div>' : '') +
+      (rows ? '<h3 style="margin-top:14px">' + esc(T('per_level')) + '</h3>' +
+        '<div style="overflow-x:auto"><table class="tm-tbl"><thead><tr><th></th><th>' + esc(T('answered_col')) +
+        '</th><th>' + esc(T('time_col')) + '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+        : '<p class="muted sm">' + esc(T('not_timed')) + '</p>') +
+      '<p class="muted sm">' + esc(T('speed_note')) + '</p></div>';
+  }
+
   function st() { return Store.get(); }
   function empDNA(e) { return e.assessment ? Engine.dna(e.assessment.answers) : null; }
   function candDNA(c) { var a = Engine.candAnswers(c); return a.length ? Engine.dna(a) : null; }
@@ -376,6 +414,7 @@
         '<p class="muted sm">' + esc(UI.getLang() === 'en' ? 'The employee can enter the challenge with their own code from the main screen.' : 'يستطيع الموظف الدخول إلى التحدي باستخدام كوده من الشاشة الرئيسية.') + '</p></div>';
     }
     out += '</div>';
+    out += timingCard(e.assessment || e.nc22);
     out += '<div class="card"><h3>🧠 ' + esc(T('focus_title')) + '</h3>' +
       (e.focus ? '<div class="focus-head">' + UI.ring(e.focus.focus, 'FOCUS', 110) +
         '<div class="focus-subs">' + ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
@@ -548,6 +587,8 @@
       scoreTile(NC.DIMS.commit.icon, esc(lang === 'en' ? NC.DIMS.commit.en : NC.DIMS.commit.ar), sc.dims.commit, '#ec4899') +
       scoreTile('✔', esc(T('consistency_idx')), sc.consistency, '#10b981') +
       '</div>';
+
+    out += timingCard(c.nc);
 
     /* six dimensions + radar */
     out += '<div class="grid2">' +
@@ -1168,6 +1209,15 @@
           [0, 5, 10, 15].map(function (v) {
             return '<option value="' + v + '"' + ((s.settings.focusWeight || 0) === v ? ' selected' : '') + '>' + v + '%</option>';
           }).join('') + '</select></label>' +
+        '<label class="fld"><span>⏱ ' + esc(T('timer_on')) + '</span><select id="tmOn">' +
+          '<option value="1"' + (s.settings.timerEnabled !== false ? ' selected' : '') + '>' + esc(UI.getLang() === 'en' ? 'Enabled' : 'مفعّل') + '</option>' +
+          '<option value="0"' + (s.settings.timerEnabled === false ? ' selected' : '') + '>' + esc(UI.getLang() === 'en' ? 'Disabled' : 'معطّل') + '</option></select></label>' +
+        '<label class="fld"><span>⌛ ' + esc(T('level_secs')) + '</span><select id="tmSecs">' +
+          [120, 150, 180, 240, 300].map(function (v) {
+            var mm = Math.floor(v / 60) + ':' + (v % 60 < 10 ? '0' : '') + (v % 60);
+            return '<option value="' + v + '"' + ((Number(s.settings.levelSeconds) || 180) === v ? ' selected' : '') + '>' + mm + '</option>';
+          }).join('') + '</select></label>' +
+        '<p class="muted sm">⏱ ' + esc(T('timer_note')) + '</p>' +
         '<p class="muted sm">' + esc(T('open_anyway')) + ' · ' + esc(T('focus_note')) + '</p>' +
         '<button class="btn btn-primary" id="saveTh">' + esc(T('save')) + '</button></div>' +
       '<div class="card"><h3>PIN</h3>' +
@@ -1206,9 +1256,12 @@
       s.settings.thresholds.stage1 = Number(document.getElementById('thStage1').value);
       s.settings.focusEnabled = document.getElementById('fxOn').value === '1';
       s.settings.focusWeight = Number(document.getElementById('fxW').value);
+      s.settings.timerEnabled = document.getElementById('tmOn').value === '1';
+      s.settings.levelSeconds = Number(document.getElementById('tmSecs').value);
       if (srv()) return push(API.saveSettings({
         thresholds: s.settings.thresholds, focusEnabled: s.settings.focusEnabled,
-        focusWeight: s.settings.focusWeight
+        focusWeight: s.settings.focusWeight,
+        timerEnabled: s.settings.timerEnabled, levelSeconds: s.settings.levelSeconds
       }), '✔');
       Store.save(); UI.toast('✔'); body();
     };

@@ -225,6 +225,26 @@ function migrate() {
       at DATETIME DEFAULT CURRENT_TIMESTAMP,
       KEY idx_ip_at (ip, at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+  /* ---- additive migrations ----
+     CREATE TABLE IF NOT EXISTS never alters an existing table, so a column
+     added after a database was already installed needs its own guarded step. */
+  add_column($d, 'assessments', 'timing', 'LONGTEXT NULL');
+}
+
+/* adds a column only when it is missing, so migrate() stays safe to re-run */
+function add_column($d, $table, $column, $definition) {
+  try {
+    $st = $d->prepare('SELECT COUNT(*) c FROM information_schema.columns
+                       WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?');
+    $st->execute(array($table, $column));
+    $row = $st->fetch();
+    if ($row && (int) $row['c'] > 0) return false;
+    $d->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
+    return true;
+  } catch (Exception $e) {
+    return false;   /* a locked-down grant must not break every request */
+  }
 }
 
 /* ---------------- settings helpers ---------------- */
@@ -364,6 +384,7 @@ function load_assessments(&$employees, &$candidates) {
       'answers' => json_decode($a['answers'], true),
       'xp' => (int) $a['xp'],
       'badges' => $a['badges'] ? json_decode($a['badges'], true) : array(),
+      'levels' => (isset($a['timing']) && $a['timing']) ? json_decode($a['timing'], true) : array(),
       'completedAt' => mb_substr($a['completed_at'], 0, 10)
     );
     if ($a['subject_type'] === 'employee' && isset($employees[$a['subject_id']])) {
@@ -409,6 +430,8 @@ function default_settings() {
     'weights' => null,
     'ncWeights' => null,
     'focusEnabled' => true,
+    'timerEnabled' => true,
+    'levelSeconds' => 180,
     'focusInDecision' => false,
     'focusWeight' => 0,
     'spotDebug' => false,
@@ -434,7 +457,7 @@ function clean_answers($answers, $max = 200) {
   foreach ($answers as $a) {
     if (count($clean) >= $max) break;
     if (!is_array($a) || !isset($a['qid'])) continue;
-    $clean[] = array(
+    $row = array(
       'qid'   => s($a['qid'], 24),
       'opt'   => intOrNull(isset($a['opt']) ? $a['opt'] : null),
       's'     => isset($a['s']) ? intOrNull($a['s']) : null,
@@ -443,8 +466,35 @@ function clean_answers($answers, $max = 200) {
       'trait' => isset($a['trait']) ? s($a['trait'], 20) : null,
       'lvl'   => isset($a['lvl']) ? intOrNull($a['lvl']) : null
     );
+    /* timed assessment: how long the answer took, and whether the clock ran
+       out before it was given. An unanswered question is not a wrong one. */
+    $ms = isset($a['ms']) ? intOrNull($a['ms']) : null;
+    if ($ms !== null && $ms >= 0 && $ms <= 3600000) $row['ms'] = $ms;
+    if (!empty($a['unanswered'])) { $row['unanswered'] = true; $row['opt'] = null; }
+    $clean[] = $row;
   }
   return $clean;
+}
+
+/* per-level clock report: [{key,n,code,answered,total,seconds,limit,timedOut}] */
+function clean_levels($levels, $max = 12) {
+  if (!is_array($levels)) return array();
+  $out = array();
+  foreach ($levels as $b) {
+    if (count($out) >= $max) break;
+    if (!is_array($b)) continue;
+    $out[] = array(
+      'key'      => s(isset($b['key']) ? $b['key'] : '', 16),
+      'n'        => intOrNull(isset($b['n']) ? $b['n'] : null),
+      'code'     => s(isset($b['code']) ? $b['code'] : '', 40),
+      'answered' => max(0, min(200, (int) intOrNull(isset($b['answered']) ? $b['answered'] : 0))),
+      'total'    => max(0, min(200, (int) intOrNull(isset($b['total']) ? $b['total'] : 0))),
+      'seconds'  => max(0, min(7200, (int) intOrNull(isset($b['seconds']) ? $b['seconds'] : 0))),
+      'limit'    => max(0, min(7200, (int) intOrNull(isset($b['limit']) ? $b['limit'] : 0))),
+      'timedOut' => !empty($b['timedOut'])
+    );
+  }
+  return $out;
 }
 
 /* returns null when the payload is not a usable focus result */
@@ -473,12 +523,14 @@ function put_assessment($type, $id, $model, $payload) {
   if (!count($clean)) return false;
   $del = db()->prepare('DELETE FROM assessments WHERE subject_type = ? AND subject_id = ? AND model = ?');
   $del->execute(array($type, $id, $model));
-  $st = db()->prepare('INSERT INTO assessments (subject_type, subject_id, model, answers, xp, badges, completed_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)');
+  $levels = clean_levels(isset($payload['levels']) ? $payload['levels'] : null);
+  $st = db()->prepare('INSERT INTO assessments (subject_type, subject_id, model, answers, xp, badges, timing, completed_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   $st->execute(array($type, $id, $model,
     json_encode($clean, JSON_UNESCAPED_UNICODE),
     intOrNull(isset($payload['xp']) ? $payload['xp'] : 0) ?: 0,
     json_encode(isset($payload['badges']) && is_array($payload['badges']) ? $payload['badges'] : array()),
+    count($levels) ? json_encode($levels, JSON_UNESCAPED_UNICODE) : null,
     (ymd_or_null(isset($payload['completedAt']) ? $payload['completedAt'] : null) ?: date('Y-m-d')) . ' 00:00:00'));
   return true;
 }

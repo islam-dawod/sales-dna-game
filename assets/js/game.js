@@ -61,6 +61,147 @@
     return isNC() ? NC.LEVELS[i] : Q.zone(S.plan[i].zone);
   }
 
+  /* ============================================================
+     TIMED LEVELS
+     Every level gets its own clock. When it runs out the level closes and
+     the next one opens automatically — no dialog, no extension. Questions
+     left behind are stored as unanswered, never as wrong answers, so they
+     lower completeness instead of the score.
+
+     The deadline is an absolute timestamp kept with the saved run, so
+     reloading the page resumes the same level with the time that was
+     actually left rather than a fresh three minutes.
+     ============================================================ */
+  var RUN_KEY = 'sdna_run_v1';
+  var tIv = null;
+
+  function timerOn() {
+    var st = Store.get().settings;
+    return st.timerEnabled !== false;
+  }
+  function levelSeconds() {
+    var n = parseInt(Store.get().settings.levelSeconds, 10);
+    if (isNaN(n) || n < 30 || n > 3600) n = 180;
+    return n;
+  }
+  function fmtClock(ms) {
+    var s = Math.max(0, Math.ceil(ms / 1000));
+    var m = Math.floor(s / 60);
+    return m + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
+  }
+  function remainingMs() {
+    if (!S || !S.deadline) return null;
+    return S.deadline - Date.now();
+  }
+
+  /* ---------- saved run: survives a refresh or a closed browser ---------- */
+  function runId() {
+    return (S.subject.type || 'x') + ':' + (S.subject.id || 'anon') + ':' + S.mode;
+  }
+  function saveRun() {
+    if (!S) return;
+    try {
+      localStorage.setItem(RUN_KEY, JSON.stringify({
+        id: runId(), model: S.model, mode: S.mode,
+        subjectId: S.subject.id, subjectType: S.subject.type,
+        plan: S.plan, queue: S.queue, blockIdx: S.blockIdx, qIdx: S.qIdx,
+        answers: S.answers, xp: S.xp, badges: S.badges,
+        levelStats: S.levelStats, deadline: S.deadline, levelStartedAt: S.levelStartedAt,
+        startedAt: S.startedAt, savedAt: Date.now()
+      }));
+    } catch (e) {}
+  }
+  function clearRun() {
+    try { localStorage.removeItem(RUN_KEY); } catch (e) {}
+  }
+  function loadRun(id) {
+    try {
+      var raw = localStorage.getItem(RUN_KEY);
+      if (!raw) return null;
+      var r = JSON.parse(raw);
+      if (!r || r.id !== id) return null;
+      /* a run older than 6 hours is stale, not an interruption */
+      if (!r.savedAt || Date.now() - r.savedAt > 6 * 3600 * 1000) return null;
+      return r;
+    } catch (e) { return null; }
+  }
+
+  /* ---------- the clock itself ---------- */
+  function startLevelClock(resumeDeadline) {
+    stopLevelClock();
+    if (!timerOn()) { S.deadline = null; return; }
+    S.levelStartedAt = resumeDeadline ? S.levelStartedAt : Date.now();
+    S.deadline = resumeDeadline || (Date.now() + levelSeconds() * 1000);
+    saveRun();
+    tIv = setInterval(tick, 250);
+    tick();
+  }
+  function stopLevelClock() {
+    if (tIv) { clearInterval(tIv); tIv = null; }
+  }
+  function tick() {
+    var node = document.getElementById('tmr');
+    var left = remainingMs();
+    if (left === null) return;
+    if (node) {
+      node.textContent = fmtClock(left);
+      var secs = Math.ceil(left / 1000);
+      node.parentNode.classList.toggle('t-warn', secs <= 60 && secs > 30);
+      node.parentNode.classList.toggle('t-hot', secs <= 30);
+    }
+    if (left <= 0) { stopLevelClock(); timeUp(); }
+  }
+
+  /* how long the level actually took, and what was left undone */
+  function closeLevel(timedOut) {
+    stopLevelClock();
+    var qs = S.queue[S.blockIdx] || [];
+    var m = meta(S.blockIdx);
+    var answeredHere = S.answers.filter(function (a) { return qs.indexOf(a.qid) >= 0 && !a.unanswered; }).length;
+    var secs = S.levelStartedAt ? Math.round((Date.now() - S.levelStartedAt) / 1000) : null;
+    S.levelStats.push({
+      key: (isNC() ? m.key : S.plan[S.blockIdx].zone), n: m.n, code: m.code,
+      answered: answeredHere, total: qs.length,
+      seconds: timerOn() ? Math.min(secs == null ? 0 : secs, levelSeconds()) : secs,
+      limit: timerOn() ? levelSeconds() : 0,
+      timedOut: !!timedOut
+    });
+    S.deadline = null; S.levelStartedAt = null;
+    saveRun();
+  }
+
+  /* time's up: bank what was answered, mark the rest, move on. No dialog. */
+  function timeUp() {
+    var qs = S.queue[S.blockIdx] || [];
+    var got = {};
+    S.answers.forEach(function (a) { got[a.qid] = 1; });
+    qs.forEach(function (id) {
+      if (got[id]) return;
+      var q = getQ(id);
+      if (!q) return;
+      /* unanswered — deliberately not a zero. See NC.score() and Engine.dna(). */
+      S.answers.push(isNC()
+        ? { qid: id, opt: null, lvl: q.lvl, unanswered: true }
+        : { qid: id, opt: null, s: null, zone: q.zone, trait: q.trait, unanswered: true });
+    });
+    closeLevel(true);
+
+    var m = meta(S.blockIdx);
+    app.innerHTML = '<div class="screen times-up" style="--c:' + m.color + '">' +
+      '<div class="tu-card pop"><div class="tu-icon">⏱</div>' +
+        '<h1>' + esc(T('times_up')) + '</h1>' +
+        '<p class="muted">' + esc(T('times_up_note')) + '</p>' +
+        '<div class="tu-bar"><i></i></div>' +
+      '</div></div>';
+    Sound.tap();
+    setTimeout(function () {
+      S.blockIdx++;
+      S.qIdx = 0;
+      if (S.blockIdx >= S.plan.length) return salesComplete();
+      renderMap(false);
+    }, 1600);
+  }
+
   /* ---------------- session start ---------------- */
   function start(mode, subject) {
     app = document.getElementById('app');
@@ -80,13 +221,41 @@
       model: (mode === 'candidate' || mode === 'employee22') ? 'nc' : 'emp',
       mode: mode, subject: subject, name: (subject.name || '').split(' ')[0],
       plan: plan, queue: plan.map(function (b) { return b.qs.slice(); }),
-      blockIdx: 0, qIdx: 0, answers: [], xp: 0, badges: [], startedAt: Date.now()
+      blockIdx: 0, qIdx: 0, answers: [], xp: 0, badges: [], startedAt: Date.now(),
+      levelStats: [], deadline: null, levelStartedAt: null, qStartedAt: null
     };
     document.body.classList.add('in-game');
+
+    /* Pick up an interrupted run rather than handing out a fresh clock: the
+       stored deadline is absolute, so a reload costs the time it really took. */
+    var prev = loadRun(runId());
+    if (prev && prev.answers && prev.answers.length && prev.blockIdx < S.plan.length) {
+      S.plan = prev.plan || S.plan;
+      S.queue = prev.queue || S.queue;
+      S.blockIdx = prev.blockIdx;
+      S.qIdx = prev.qIdx || 0;
+      S.answers = prev.answers;
+      S.xp = prev.xp || 0;
+      S.badges = prev.badges || [];
+      S.levelStats = prev.levelStats || [];
+      S.levelStartedAt = prev.levelStartedAt || null;
+      if (prev.deadline) {
+        if (prev.deadline <= Date.now()) {         /* the clock ran out while away */
+          S.deadline = prev.deadline;
+          return timeUp();
+        }
+        startLevelClock(prev.deadline);            /* resume with what is left */
+        return renderQuestion();
+      }
+      return renderMap(false);
+    }
+
+    clearRun();
     renderMap(true);
   }
 
   function leave() {
+    stopLevelClock();
     document.body.classList.remove('in-game');
     document.documentElement.style.removeProperty('--zone-hue');
     root.SDNA.App.go('home');
@@ -104,6 +273,7 @@
       '<div class="hud-zone"><span class="hud-dot" style="background:' + m.color + '"></span>' +
         '<b>' + esc(m.code) + '</b><small>' + esc(UI.nm(m)) + '</small></div>' +
       '<div class="hud-right">' +
+        (S.deadline ? '<div class="hud-timer" dir="ltr">⏱ <b id="tmr">' + fmtClock(remainingMs()) + '</b></div>' : '') +
         '<div class="hud-xp" dir="ltr">' + Art.icon('coin') + '<b id="xpNow">' + S.xp + '</b></div>' +
         '<button class="hud-btn" id="sndBtn" title="sound">' + (Store.get().settings.sound ? '🔊' : '🔇') + '</button>' +
         '<button class="hud-btn" id="quitBtn" title="exit">✕</button>' +
@@ -161,11 +331,20 @@
         '<h3 class="zi-sub">' + esc(UI.nm(m)) + '</h3>' +
         '<div class="mentor-bubble"><span class="mentor-dot" style="--c:' + ch.color + '">' + (ch.icon || '★') + '</span>' +
           '<div><b>' + esc(UI.nm(ch)) + '</b><span>' + esc(hello + (UI.getLang() === 'en' ? ch.line_en : ch.line_ar)) + '</span></div></div>' +
-        '<button class="btn btn-primary btn-xl" id="goQ">' + esc(T('enter')) + '</button>' +
+        '<div class="zi-count">' + S.queue[S.blockIdx].length + ' ' + esc(T('challenges')) +
+          (timerOn() ? ' · <b>' + fmtClock(levelSeconds() * 1000) + '</b>' : '') + '</div>' +
+        (timerOn() ? '<p class="zi-timenote">' + esc(T('level_time_note')
+            .replace('{t}', fmtClock(levelSeconds() * 1000))) + '</p>' : '') +
+        '<button class="btn btn-primary btn-xl" id="goQ">' + esc(T('start_level')) + '</button>' +
       '</div></div>';
     bindHud();
     Sound.unlock();
-    document.getElementById('goQ').onclick = function () { Sound.tap(); S.qIdx = 0; renderQuestion(); };
+    document.getElementById('goQ').onclick = function () {
+      Sound.tap();
+      S.qIdx = 0;
+      startLevelClock();          /* the clock starts only after the button */
+      renderQuestion();
+    };
   }
 
   /* ---------------- question scene ---------------- */
@@ -204,6 +383,8 @@
       '</div></div>';
 
     bindHud();
+    S.qStartedAt = Date.now();
+    tick();                       /* keep the freshly rendered clock in step */
     UI.$$('.opt', app).forEach(function (b) {
       b.onclick = function () { choose(q, parseInt(b.dataset.i, 10), b); };
     });
@@ -215,11 +396,15 @@
     Sound.pick();
 
     var opt = q.a[optIndex];
+    /* response time per question — an observation, never a score. See rule 9. */
+    var ms = S.qStartedAt ? Math.max(0, Date.now() - S.qStartedAt) : null;
     if (isNC()) {
-      S.answers.push({ qid: q.id, opt: optIndex, lvl: q.lvl });
+      S.answers.push({ qid: q.id, opt: optIndex, lvl: q.lvl, ms: ms });
     } else {
-      S.answers.push({ qid: q.id, opt: optIndex, s: opt.s, f: opt.f || null, zone: q.zone, trait: q.trait });
+      S.answers.push({ qid: q.id, opt: optIndex, s: opt.s, f: opt.f || null, zone: q.zone, trait: q.trait, ms: ms });
     }
+    /* written the moment it is given, so a timeout or a closed tab keeps it */
+    saveRun();
     S.xp += XP_Q;
     var xpNode = document.getElementById('xpNow');
     if (xpNode) UI.countUp(xpNode, S.xp, 420);
@@ -246,6 +431,8 @@
 
   /* ---------------- level complete ---------------- */
   function renderZoneComplete() {
+    var leftMs = remainingMs();
+    closeLevel(false);
     var m = meta(S.blockIdx);
     var key = isNC() ? m.key : S.plan[S.blockIdx].zone;
     var badge = BADGES[key] || null;
@@ -268,6 +455,8 @@
           '<div><b>' + (S.blockIdx + 1) + '/' + S.plan.length + '</b><small>' + (isNC() ? 'LEVELS' : 'ZONES') + '</small></div>' +
           '<div><b>' + S.badges.length + '</b><small>BADGES</small></div>' +
         '</div>' +
+        (leftMs != null && leftMs > 0
+          ? '<div class="zd-left" dir="ltr">⏱ ' + fmtClock(leftMs) + ' <span>' + esc(T('remaining')) + '</span></div>' : '') +
         (badge ? '<div class="badge-earned pop"><span>' + badge.icon + '</span>' +
           esc(UI.nm(badge)) + '</div>' : '') +
         (nextM ? '<div class="next-zone">NEXT: <b style="color:' + nextM.color + '">' + esc(nextM.code) + '</b></div>' : '') +
@@ -285,7 +474,10 @@
   /* ---------------- sales part finished ---------------- */
   function salesComplete() {
     var st = Store.get();
-    var payload = { answers: S.answers, completedAt: new Date().toISOString().slice(0, 10), xp: S.xp, badges: S.badges };
+    stopLevelClock();
+    clearRun();
+    var payload = { answers: S.answers, completedAt: new Date().toISOString().slice(0, 10),
+                    xp: S.xp, badges: S.badges, levels: S.levelStats };
 
     if (S.subject.type === 'employee') {
       if (S.mode === 'employee22') Store.updateEmployee(S.subject.id, { nc22: payload });
@@ -298,7 +490,7 @@
        from any device. A failure is surfaced, never silently swallowed. */
     if (Store.isServerMode() && root.SDNA.API) {
       var model = S.subject.type === 'candidate' ? 'nc25' : (S.mode === 'employee22' ? 'nc22' : 'emp36');
-      root.SDNA.API.saveAssessment(model, payload)['catch'](function (err) {
+      root.SDNA.API.saveAssessment(model, payload, S.levelStats)['catch'](function (err) {
         UI.toast('⚠ ' + T('save_failed') + ' (' + err.message + ')', 'bad');
       });
     }

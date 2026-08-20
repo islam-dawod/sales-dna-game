@@ -69,9 +69,11 @@
   }
 
   /* ---------- results (written by the logged-in subject) ---------- */
-  function saveAssessment(model, payload) {
+  function saveAssessment(model, payload, levels) {
     return req('submit/assessment', {
-      model: model, answers: payload.answers, xp: payload.xp || 0, badges: payload.badges || []
+      model: model, answers: payload.answers, xp: payload.xp || 0, badges: payload.badges || [],
+      /* per-level clock report from the timed assessment */
+      levels: levels || payload.levels || []
     });
   }
   function saveFocus(result) { return req('submit/focus', { result: result }); }

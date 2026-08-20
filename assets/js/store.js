@@ -69,6 +69,8 @@
         weights: null,          // employee 12-trait weights (null => learned)
         ncWeights: null,        // candidate 6-dimension weights (null => spec defaults)
         focusEnabled: true,     // bonus focus level
+        timerEnabled: true,     // 3-minute clock per level
+        levelSeconds: 180,      // manager-tunable: 150 / 180 / 240
         focusInDecision: false, // never part of the match score unless proven
         focusWeight: 0,         // stays 0 until company data proves it separates
         spotDebug: false,       // show hitboxes (manager / developer only)

@@ -13,13 +13,24 @@
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
 
   /* ---------- DNA from answers ---------- */
+  /* A question the clock ran out on is stored as unanswered, never as a wrong
+     answer, so it contributes to neither the numerator nor the denominator of
+     a trait. Completeness is reported separately — see timingStats(). */
+  function isAnswered(a) {
+    return !!a && !a.unanswered && a.opt !== null && a.opt !== undefined;
+  }
+
   function dna(answers) {
     answers = answers || [];
-    var buckets = {}, out = { traits: {}, overall: 0, count: answers.length };
+    var scored = answers.filter(isAnswered);
+    var buckets = {}, out = { traits: {}, overall: 0, count: scored.length, asked: answers.length };
     TK.forEach(function (t) { buckets[t] = []; });
-    answers.forEach(function (a) {
+    scored.forEach(function (a) {
       var q = Q.get(a.qid); if (!q) return;
-      buckets[q.trait].push(typeof a.s === 'number' ? a.s : q.a[a.opt].s);
+      var opt = q.a[a.opt];
+      var sc = typeof a.s === 'number' ? a.s : (opt ? opt.s : null);
+      if (typeof sc !== 'number') return;
+      buckets[q.trait].push(sc);
     });
     var present = [];
     TK.forEach(function (t) {
@@ -28,6 +39,69 @@
     });
     out.overall = round(avg(present));
     return out;
+  }
+
+  /* ---------- timed assessment ----------
+     Reads a stored assessment payload and reports how the subject behaved
+     against the clock. Deliberately kept apart from DNA and MATCH: speed is
+     an observation, not a verdict, and nothing here feeds a score until the
+     company's own data shows it separates strong from weak performers. */
+  function timingStats(payload) {
+    if (!payload) return null;
+    var ans = payload.answers || [];
+    if (!ans.length) return null;
+
+    var answered = ans.filter(isAnswered);
+    var durations = answered.map(function (a) { return typeof a.ms === 'number' ? a.ms : null; })
+                           .filter(function (v) { return typeof v === 'number' && v > 0; });
+
+    var out = {
+      asked: ans.length,
+      answered: answered.length,
+      unanswered: ans.length - answered.length,
+      completeness: ans.length ? Math.round(100 * answered.length / ans.length) : null,
+      avgMs: durations.length ? Math.round(durations.reduce(function (s, v) { return s + v; }, 0) / durations.length) : null,
+      fastestMs: durations.length ? Math.min.apply(null, durations) : null,
+      slowestMs: durations.length ? Math.max.apply(null, durations) : null,
+      levels: [],
+      timedOutLevels: 0,
+      totalSeconds: null,
+      timed: false
+    };
+
+    var lv = payload.levels || [];
+    if (lv.length) {
+      out.timed = true;
+      var total = 0;
+      out.levels = lv.map(function (b) {
+        var secs = intOr(b.seconds, 0);
+        total += secs;
+        if (b.timedOut) out.timedOutLevels++;
+        return {
+          key: b.key || '', n: intOr(b.n, 0), code: b.code || '',
+          answered: intOr(b.answered, 0), total: intOr(b.total, 0),
+          seconds: secs, limit: intOr(b.limit, 0), timedOut: !!b.timedOut
+        };
+      });
+      out.totalSeconds = total;
+    }
+    return out;
+  }
+  function intOr(v, d) { var n = parseInt(v, 10); return isNaN(n) ? d : n; }
+
+  /* how much of the picture we actually have — reported next to the score,
+     never folded into it */
+  function completenessBand(pct) {
+    if (pct == null) return 'unknown';
+    if (pct >= 95) return 'high';
+    if (pct >= 80) return 'medium';
+    return 'low';
+  }
+
+  function mmss(secs) {
+    if (secs == null) return '—';
+    var m = Math.floor(secs / 60), s = secs % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
   }
 
   function mergeAnswers() {
@@ -760,6 +834,7 @@
     perfStats: perfStats, dataClass: dataClass, classCheck: classCheck,
     commonDNA: commonDNA, differentiators: differentiators, ncQuestionQuality: ncQuestionQuality,
     matchConfidence: matchConfidence, commonalities: commonalities,
+    timingStats: timingStats, completenessBand: completenessBand, mmss: mmss, isAnswered: isAnswered,
     predictionValidation: predictionValidation, focusVerdict: focusVerdict, actualClass: actualClass
   };
 })(window);

@@ -268,9 +268,17 @@
     var earned = {}, max = {}, preEarned = {}, preMax = {}, flags = {}, crosses = [];
     DIM_KEYS.forEach(function (k) { earned[k] = 0; max[k] = 0; preEarned[k] = 0; preMax[k] = 0; });
 
+    var asked = 0, scored = 0;
     answers.forEach(function (ans) {
       var q = byId[ans.qid]; if (!q) return;
-      var opt = q.a[ans.opt]; if (!opt) return;
+      asked++;
+      /* A question the timer ran out on carries opt null and unanswered true.
+         Skipping it here keeps it out of BOTH earned and max, so the trait is
+         scored only on what was actually answered — an unanswered question is
+         never a zero. How much was answered is reported as completeness. */
+      var opt = (ans.unanswered || ans.opt === null || ans.opt === undefined) ? null : q.a[ans.opt];
+      if (!opt) return;
+      scored++;
       var isCross = q.lvl === 5;
 
       /* max achievable per trait for this question */
@@ -320,7 +328,11 @@
       flags: Object.keys(flags).map(function (k) {
         return { key: k, n: flags[k], sev: FLAG_META[k].sev, ar: FLAG_META[k].ar, en: FLAG_META[k].en };
       }).sort(function (a, b) { return b.sev - a.sev; }),
-      answered: answers.length
+      answered: scored,
+      asked: asked,
+      unanswered: asked - scored,
+      /* kept as its own number — never folded into match */
+      completeness: asked ? Math.round(100 * scored / asked) : null
     };
   }
 
