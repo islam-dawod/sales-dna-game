@@ -519,16 +519,21 @@ body.mgr-mode .world{filter:blur(3px) saturate(.6);opacity:.5}
 .spot-pane{position:relative;border:2px solid var(--line);border-radius:18px;overflow:hidden;cursor:crosshair;
   background:#0e1729;box-shadow:var(--shadow)}
 .spot-pane:hover{border-color:rgba(59,130,246,.5)}
-.spot-pane.shake{animation:shakeX .32s ease}
 @keyframes shakeX{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .spot-svg{width:100%;height:auto;display:block;user-select:none;pointer-events:none}
 .spot-lbl{position:absolute;top:8px;inset-inline-start:10px;font-family:'Orbitron',sans-serif;font-size:13px;
   color:var(--cyan);background:rgba(5,8,15,.75);border-radius:8px;padding:2px 9px}
-.spot-marks{position:absolute;inset:0;pointer-events:none}
-.spot-mark{position:absolute;transform:translate(50%,-50%);border-radius:50%;box-sizing:border-box}
-.spot-mark.ok{border:3px solid #10b981;box-shadow:0 0 18px rgba(16,185,129,.85);animation:pop .4s cubic-bezier(.2,1.6,.4,1)}
-.spot-mark.miss{width:26px;height:26px;border:3px solid #ef4444;margin:-13px 0 0 -13px;transform:none;
-  animation:missFade .7s ease forwards}
+.spot-marks{position:absolute;pointer-events:none;direction:ltr}
+.spot-mark{position:absolute;transform:translate(-50%,-50%);border-radius:50%;box-sizing:border-box}
+.spot-mark.ok{border:3px solid #10b981;box-shadow:0 0 18px rgba(16,185,129,.85),inset 0 0 14px rgba(16,185,129,.35);
+  animation:pop .4s cubic-bezier(.2,1.6,.4,1)}
+.spot-mark.ok:after{content:attr(data-n);position:absolute;top:-9px;left:-9px;width:19px;height:19px;border-radius:50%;
+  background:#10b981;color:#04120c;font:700 12px/19px 'Orbitron',sans-serif;text-align:center}
+.spot-mark.miss{width:30px;height:30px;border:3px solid #ef4444;background:rgba(239,68,68,.14);
+  animation:missFade .65s ease forwards;pointer-events:none}
+.spot-mark.miss:after{content:'✕';position:absolute;inset:0;color:#fca5a5;font:700 15px/24px sans-serif;text-align:center}
+.fx-hint.cool{color:#fca5a5}
+.fx-hint.cool:after{content:' ⏸';}
 @keyframes missFade{to{opacity:0;transform:scale(1.6)}}
 
 .cust-card{width:min(94vw,420px);background:linear-gradient(165deg,rgba(20,30,50,.98),rgba(8,13,24,.98));
@@ -550,6 +555,33 @@ body.mgr-mode .world{filter:blur(3px) saturate(.6);opacity:.5}
   .spot-pane{border-radius:14px}
   .fx-timer{font-size:17px}
 }
+
+.pick-mode{display:grid;gap:10px;width:100%;max-width:460px;margin:14px 0}
+.mode-card{position:relative;font-family:inherit;text-align:start;cursor:pointer;color:var(--txt);
+  background:linear-gradient(150deg,rgba(23,34,58,.95),rgba(8,13,24,.95));border:1.5px solid var(--line);
+  border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;transition:.2s}
+.mode-card:hover{transform:translateY(-3px);border-color:var(--c);box-shadow:0 14px 34px rgba(0,0,0,.5)}
+.mode-card b{font-size:16.5px}
+.mode-card small{color:var(--muted);font-size:12.5px}
+.mode-card .done-tag{position:absolute;inset-inline-end:14px;top:14px;color:#10b981;font-style:normal}
+
+/* ---------- performance history · score tiles · post-hire ---------- */
+.hist{position:relative;display:flex;gap:5px;align-items:flex-end;height:120px;margin:6px 0 14px;
+  padding:0 2px;border-bottom:1px solid var(--line)}
+.hist-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:3px}
+.hist-col i{width:100%;max-width:26px;border-radius:4px 4px 0 0;display:block;min-height:3px}
+.hist-col small{font-size:9.5px;color:var(--muted)}
+.hist-line{position:absolute;left:0;right:0;height:1px;background:rgba(16,185,129,.5);border-top:1px dashed rgba(16,185,129,.6)}
+.score-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.score-tile{background:linear-gradient(150deg,rgba(17,26,44,.96),rgba(10,16,32,.96));border:1px solid var(--line);
+  border-radius:16px;padding:12px 15px;position:relative;overflow:hidden}
+.score-tile:before{content:'';position:absolute;inset-inline-start:0;top:0;bottom:0;width:4px;background:var(--c)}
+.score-tile small{color:var(--muted);font-size:12px;display:block;margin-bottom:2px}
+.score-tile b{font-family:'Orbitron',sans-serif;font-size:24px}
+.why{margin-top:6px;font-size:12px;color:#cfe0ff;opacity:.85;line-height:1.6}
+.ph-row{border-top:1px solid rgba(255,255,255,.07);padding:12px 0}
+.ph-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ok-line{color:#6ee7b7;font-size:13.5px}
 
 /* ---------- print ---------- */
 @media print{

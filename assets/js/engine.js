@@ -516,6 +516,229 @@
     return out.slice(0, 6);
   }
 
+  /* ============================================================
+     EMPLOYEE QUALITY ENGINE
+     1. SALES DNA        — how the person behaves
+     2. ACTUAL PERFORMANCE — what they really deliver
+     3. CANDIDATE MATCH  — similarity to people who actually deliver
+     These three are computed and displayed separately, never mixed.
+     ============================================================ */
+  function stdev(a) {
+    if (a.length < 2) return 0;
+    var m = avg(a);
+    return Math.sqrt(avg(a.map(function (x) { return (x - m) * (x - m); })));
+  }
+
+  /* ---- 2. ACTUAL PERFORMANCE from the monthly history ---- */
+  function perfStats(e) {
+    var h = (e.history || []).filter(function (x) { return typeof x.pct === 'number'; });
+    if (!h.length) {
+      return { n: 0, avg: e.targetPct || null, above: null, below: null,
+               consistency: null, sd: null, best: null, worst: null, trend: null, history: [] };
+    }
+    var v = h.map(function (x) { return x.pct; });
+    var m = avg(v), sd = stdev(v);
+    var cv = m ? sd / m : 0;
+    var half = Math.floor(v.length / 2);
+    return {
+      n: v.length, avg: round(m), sd: round(sd * 10) / 10,
+      above: v.filter(function (x) { return x >= 100; }).length,
+      below: v.filter(function (x) { return x < 100; }).length,
+      best: Math.max.apply(null, v), worst: Math.min.apply(null, v),
+      consistency: round(clamp(100 - cv * 220, 0, 100)),
+      trend: round(avg(v.slice(half)) - avg(v.slice(0, half))),
+      history: h
+    };
+  }
+
+  /* ---- data-based classification (independent of the manager label) ---- */
+  function dataClass(e) {
+    var ps = perfStats(e);
+    var target = ps.avg != null ? ps.avg : (e.targetPct || 0);
+    var parts = {
+      target:      clamp((target - 60) / 70 * 100, 0, 100),          // 60% → 0 · 130% → 100
+      consistency: ps.consistency != null ? ps.consistency : 60,
+      attendance:  clamp((e.attendance - 70) / 30 * 100, 0, 100),
+      manager:     clamp((e.managerScore || 0) * 10, 0, 100),
+      late:        clamp(100 - (e.lateDays || 0) * 6, 0, 100)
+    };
+    var score = 0.42 * parts.target + 0.18 * parts.consistency + 0.16 * parts.attendance +
+                0.14 * parts.manager + 0.10 * parts.late;
+    var g = score >= 72 ? 'strong' : score >= 52 ? 'medium' : 'low';
+    return { group: g, score: round(score), parts: parts, perf: ps };
+  }
+
+  function classCheck(e) {
+    var dc = dataClass(e);
+    var rank = { strong: 3, medium: 2, low: 1 };
+    return {
+      manager: e.group, data: dc.group, score: dc.score, perf: dc.perf,
+      conflict: dc.group !== e.group,
+      direction: rank[e.group] > rank[dc.group] ? 'manager_higher' :
+                 rank[e.group] < rank[dc.group] ? 'data_higher' : 'same'
+    };
+  }
+
+  /* ---- 4. COMMON DNA — what the strong employees share ---- */
+  function commonDNA(employees) {
+    var gs = groupStats(employees);
+    var rows = TK.map(function (k) { return { key: k, strong: gs.strong.traits[k] }; })
+      .filter(function (r) { return r.strong != null; })
+      .sort(function (a, b) { return b.strong - a.strong; });
+    return { rows: rows, n: gs.strong.n, groups: gs };
+  }
+
+  /* ---- 5. SUCCESS DIFFERENTIATORS — present in strong, absent in weak ---- */
+  function differentiators(employees) {
+    var gs = groupStats(employees);
+    var rows = TK.map(function (k) {
+      var st = gs.strong.traits[k], md = gs.medium.traits[k], lo = gs.low.traits[k];
+      var delta = (st != null && lo != null) ? st - lo : null;
+      var rating = delta == null ? 'unknown'
+        : delta >= 25 ? 'very_high' : delta >= 15 ? 'high' : delta >= 8 ? 'medium' : 'low';
+      return { key: k, strong: st, medium: md, low: lo, delta: delta == null ? null : round(delta), rating: rating };
+    }).sort(function (a, b) { return (b.delta == null ? -99 : b.delta) - (a.delta == null ? -99 : a.delta); });
+    return { rows: rows, groups: gs, keys: rows.filter(function (r) { return r.rating === 'very_high' || r.rating === 'high'; }) };
+  }
+
+  /* ---- 6. QUESTION QUALITY for the 25-question model (staff answers) ---- */
+  function optQualityPct(q, oi) {
+    var sum = 0, max = 0;
+    NC.DIM_KEYS.forEach(function (k) {
+      var m = 0;
+      q.a.forEach(function (o) { if (o.p[k] != null && o.p[k] > m) m = o.p[k]; });
+      max += m; sum += q.a[oi].p[k] || 0;
+    });
+    return max ? 100 * sum / max : 50;
+  }
+
+  function ncQuestionQuality(employees) {
+    var staff = employees.filter(function (e) { return e.nc22; });
+    var acc = {};
+    staff.forEach(function (e) {
+      e.nc22.answers.forEach(function (a) {
+        var q = NC.get(a.qid); if (!q || q.extra) return;
+        acc[a.qid] = acc[a.qid] || { qid: a.qid, lvl: q.lvl, groups: { strong: [], medium: [], low: [] }, picks: { strong: {}, medium: {}, low: {} } };
+        acc[a.qid].groups[e.group].push(optQualityPct(q, a.opt));
+        var pk = acc[a.qid].picks[e.group];
+        pk[a.opt] = (pk[a.opt] || 0) + 1;
+      });
+    });
+    var rows = NC.all.filter(function (q) { return !q.extra; }).map(function (q) {
+      var r = acc[q.id];
+      if (!r) {
+        return { qid: q.id, lvl: q.lvl, q: q.q, staffOnly: q.aud === 'cand', n: 0,
+                 strong: null, medium: null, low: null, sep: null, rating: 'nodata',
+                 topShare: null, best: bestOption(q) };
+      }
+      var st = r.groups.strong.length ? avg(r.groups.strong) : null;
+      var md = r.groups.medium.length ? avg(r.groups.medium) : null;
+      var lo = r.groups.low.length ? avg(r.groups.low) : null;
+      var sep = (st != null && lo != null) ? st - lo : null;
+      var bi = bestOption(q);
+      var share = {};
+      ['strong', 'medium', 'low'].forEach(function (g) {
+        var tot = Object.keys(r.picks[g]).reduce(function (n, k) { return n + r.picks[g][k]; }, 0);
+        share[g] = tot ? round(100 * (r.picks[g][bi] || 0) / tot) : null;
+      });
+      return {
+        qid: q.id, lvl: q.lvl, q: q.q, staffOnly: q.aud === 'cand',
+        n: r.groups.strong.length + r.groups.medium.length + r.groups.low.length,
+        strong: st == null ? null : round(st), medium: md == null ? null : round(md), low: lo == null ? null : round(lo),
+        sep: sep == null ? null : round(sep),
+        rating: sep == null ? 'nodata' : sep >= 20 ? 'strong' : sep >= 10 ? 'medium' : 'weak',
+        topShare: share, best: bi
+      };
+    });
+    var counts = { strong: 0, medium: 0, weak: 0, nodata: 0 };
+    rows.forEach(function (r) { counts[r.rating === 'nodata' ? 'nodata' : r.rating]++; });
+    return { rows: rows, counts: counts, staff: staff.length };
+
+    function bestOption(q) {
+      var bi = 0, bv = -1;
+      q.a.forEach(function (o, i) { var v = optQualityPct(q, i); if (v > bv) { bv = v; bi = i; } });
+      return bi;
+    }
+  }
+
+  /* ---- 7. MATCH CONFIDENCE — how much the model can be trusted yet ---- */
+  function matchConfidence(state) {
+    var emp = state.employees;
+    var withData = emp.filter(function (e) { return e.assessment || e.nc22; });
+    var nStrong = withData.filter(function (e) { return e.group === 'strong'; }).length;
+    var nLow = withData.filter(function (e) { return e.group === 'low'; }).length;
+    var nHist = emp.filter(function (e) { return (e.history || []).length >= 6; }).length;
+    var diff = differentiators(emp);
+    var sepOK = diff.keys.length >= 2;
+    var reasons = [], level;
+    if (nStrong >= 10 && nLow >= 5 && sepOK && nHist >= 10) level = 'high';
+    else if (nStrong >= 5 && nLow >= 3 && sepOK) level = 'medium';
+    else level = 'low';
+    reasons.push({ k: 'strong_n', v: nStrong, ok: nStrong >= 5 });
+    reasons.push({ k: 'low_n', v: nLow, ok: nLow >= 3 });
+    reasons.push({ k: 'history_n', v: nHist, ok: nHist >= 10 });
+    reasons.push({ k: 'separation', v: diff.keys.length, ok: sepOK });
+    return { level: level, reasons: reasons, nStrong: nStrong, nLow: nLow, nHist: nHist, differentiators: diff.keys };
+  }
+
+  /* ---- 8. where the candidate matches / differs from the strong group ---- */
+  function commonalities(rep) {
+    var strong = rep.groups.strong.dims, dims = rep.score.dims;
+    var rows = NC.DIM_KEYS.map(function (k) {
+      if (dims[k] == null || strong[k] == null) return null;
+      return { key: k, cand: dims[k], strong: strong[k],
+               match: round(clamp(100 - Math.abs(dims[k] - strong[k]) * 1.6, 0, 100)),
+               delta: round(dims[k] - strong[k]) };
+    }).filter(Boolean);
+    return {
+      common: rows.slice().sort(function (a, b) { return b.match - a.match; }).slice(0, 3),
+      differences: rows.filter(function (r) { return r.delta <= -8; })
+                       .sort(function (a, b) { return a.delta - b.delta; })
+    };
+  }
+
+  /* ---- 9. PREDICTION VALIDATION after 30 / 90 / 180 days ---- */
+  function actualClass(pct) { return pct >= 105 ? 'strong' : pct >= 85 ? 'medium' : 'low'; }
+
+  function predictionValidation(state) {
+    var rows = [];
+    state.candidates.forEach(function (c) {
+      if (!c.nc || c.decision !== 'hired') return;
+      var rep = candidateReport(c, state);
+      var reviews = (c.reviews || []).filter(function (r) { return typeof r.targetPct === 'number'; });
+      if (!rep || !reviews.length) {
+        rows.push({ name: c.name, match: rep ? rep.score.match : null, band: rep ? rep.band : null,
+                    day: null, actual: null, actualClass: null, verdict: 'pending' });
+        return;
+      }
+      var last = reviews[reviews.length - 1];
+      var ac = actualClass(last.targetPct);
+      var ok = (rep.band === 'high' && ac === 'strong') ||
+               (rep.band === 'mid' && ac !== 'low') ||
+               (rep.band === 'low' && ac !== 'strong');
+      rows.push({ name: c.name, match: rep.score.match, band: rep.band, day: last.day,
+                  actual: last.targetPct, actualClass: ac, verdict: ok ? 'good' : 'missed',
+                  focus: c.focus ? c.focus.focus : null });
+    });
+    var judged = rows.filter(function (r) { return r.verdict !== 'pending'; });
+    return {
+      rows: rows, judged: judged.length,
+      accuracy: judged.length ? round(100 * judged.filter(function (r) { return r.verdict === 'good'; }).length / judged.length) : null
+    };
+  }
+
+  /* ---- focus: is it worth any weight at all? ---- */
+  function focusVerdict(state) {
+    var fs = focusStats(state.employees);
+    var enough = fs.strong.n >= 5 && fs.low.n >= 5;
+    var gap = fs.gap;
+    return {
+      stats: fs, enough: enough, gap: gap,
+      verdict: !enough ? 'insufficient' : Math.abs(gap) >= 8 ? 'signal' : 'no_signal',
+      weight: state.settings.focusWeight || 0
+    };
+  }
+
   root.SDNA.Engine = {
     dna: dna, character: character, groupStats: groupStats, learnWeights: learnWeights,
     activeWeights: activeWeights, similarity: similarity, match: match, consistency: consistency,
@@ -525,6 +748,10 @@
     status: status, mainDifferences: mainDifferences,
     to6: to6, employee6: employee6, group6: group6, similarity6: similarity6,
     candidateReport: candidateReport, calibrate6: calibrate6, focusStats: focusStats,
-    ncSummary: ncSummary, ncInterview: ncInterview
+    ncSummary: ncSummary, ncInterview: ncInterview,
+    perfStats: perfStats, dataClass: dataClass, classCheck: classCheck,
+    commonDNA: commonDNA, differentiators: differentiators, ncQuestionQuality: ncQuestionQuality,
+    matchConfidence: matchConfidence, commonalities: commonalities,
+    predictionValidation: predictionValidation, focusVerdict: focusVerdict, actualClass: actualClass
   };
 })(window);

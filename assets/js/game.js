@@ -67,12 +67,17 @@
     Art.injectDefs();
     var plan;
     if (mode === 'candidate') {
-      plan = NC.plan().map(function (b) { return { zone: b.key, qs: b.qs.slice() }; });
+      plan = NC.plan('cand').map(function (b) { return { zone: b.key, qs: b.qs.slice() }; });
+    } else if (mode === 'employee22') {
+      /* same instrument as the candidates, minus the 3 questions that are
+         off-limits for existing staff — this is what makes the two
+         populations comparable question by question */
+      plan = NC.plan('emp').map(function (b) { return { zone: b.key, qs: b.qs.slice() }; });
     } else {
       plan = Store.buildPlan('employee', Math.random, subject.exclude || []);
     }
     S = {
-      model: mode === 'candidate' ? 'nc' : 'emp',
+      model: (mode === 'candidate' || mode === 'employee22') ? 'nc' : 'emp',
       mode: mode, subject: subject, name: (subject.name || '').split(' ')[0],
       plan: plan, queue: plan.map(function (b) { return b.qs.slice(); }),
       blockIdx: 0, qIdx: 0, answers: [], xp: 0, badges: [], startedAt: Date.now()
@@ -118,7 +123,7 @@
     app.innerHTML = '<div class="screen city-screen">' + hud() +
       '<div class="map-head"><h2>' + (isNC() ? 'SALES DNA CHALLENGE' : 'SALES CITY') + '</h2>' +
       '<p class="muted">' + (S.name ? esc(T('map_hello').replace('{n}', S.name)) : esc(T('map_title'))) +
-      (isNC() ? ' · <b>' + NC.count + '</b> ' + esc(T('q_of')) : '') + '</p></div>' +
+      (isNC() ? ' · <b>' + S.plan.reduce(function (n, b) { return n + b.qs.length; }, 0) + '</b> ' + esc(T('q_of')) : '') + '</p></div>' +
       '<div class="city-map">' +
         S.plan.map(function (b, i) {
           var m = meta(i);
@@ -283,7 +288,8 @@
     var payload = { answers: S.answers, completedAt: new Date().toISOString().slice(0, 10), xp: S.xp, badges: S.badges };
 
     if (S.subject.type === 'employee') {
-      Store.updateEmployee(S.subject.id, { assessment: payload });
+      if (S.mode === 'employee22') Store.updateEmployee(S.subject.id, { nc22: payload });
+      else Store.updateEmployee(S.subject.id, { assessment: payload });
     } else {
       Store.updateCandidate(S.subject.id, { nc: payload, stage: 2 });
     }
@@ -321,6 +327,7 @@
   }
 
   function finishEmployee() {
+    if (S.model === 'nc') return finishEmployeeQuick();
     var d = Engine.dna(S.answers), ch = Engine.character(d);
     UI.confetti(110); Sound.win();
     app.innerHTML = '<div class="screen final-screen">' +
@@ -334,6 +341,29 @@
           '<span>' + esc(ch.desc_ar) + '</span></div></div>' +
         '<div class="zd-stats"><div><b>' + S.xp + '</b><small>XP</small></div>' +
           '<div><b>' + S.badges.length + '</b><small>BADGES</small></div>' +
+          '<div><b>' + S.answers.length + '</b><small>' + esc(T('q_of')) + '</small></div></div>' +
+        '<button class="btn btn-ghost" id="fin">' + esc(T('exit')) + '</button>' +
+      '</div></div>';
+    document.getElementById('fin').onclick = leave;
+  }
+
+  /* employee finished the 22-question comparable set */
+  function finishEmployeeQuick() {
+    var sc = NC.score(S.answers, Store.get());
+    var top = NC.DIM_KEYS.filter(function (k) { return sc.dims[k] != null; })
+      .sort(function (a, b) { return sc.dims[b] - sc.dims[a]; })[0];
+    UI.confetti(110); Sound.win();
+    app.innerHTML = '<div class="screen final-screen">' +
+      '<div class="fin-hero">' + Art.hero({ pose: 'cheer', expr: 'happy' }) + '</div>' +
+      '<div class="fin-card pop">' +
+        '<div class="fin-trophy">🏆</div>' +
+        '<h1>' + esc(T('challenge_done')) + '</h1>' +
+        '<p class="muted">' + esc(T('thanks_emp')) + '</p>' +
+        (top ? '<div class="char-card"><div class="cc-emoji">' + NC.DIMS[top].icon + '</div>' +
+          '<div><small>YOUR STRONGEST SIDE</small><b>' +
+          esc(UI.getLang() === 'he' ? NC.DIMS[top].he : NC.DIMS[top].ar) + '</b>' +
+          '<span>' + esc(T('thanks_emp_quick')) + '</span></div></div>' : '') +
+        '<div class="zd-stats"><div><b>' + S.xp + '</b><small>XP</small></div>' +
           '<div><b>' + S.answers.length + '</b><small>' + esc(T('q_of')) + '</small></div></div>' +
         '<button class="btn btn-ghost" id="fin">' + esc(T('exit')) + '</button>' +
       '</div></div>';
@@ -373,5 +403,16 @@
     });
   }
 
-  root.SDNA.Game = { start: start, focusOnly: focusOnly, Sound: Sound, BADGES: BADGES };
+  function calibrateSpot(doneCb) {
+    app = document.getElementById('app');
+    Art.injectDefs();
+    document.body.classList.add('in-game');
+    S = { model: 'emp', subject: { name: '' }, plan: [], queue: [], blockIdx: 0, qIdx: 0, answers: [], xp: 0, badges: [] };
+    root.SDNA.Focus.calibrate(function (result) {
+      document.body.classList.remove('in-game');
+      if (doneCb) doneCb(result);
+    });
+  }
+
+  root.SDNA.Game = { start: start, focusOnly: focusOnly, calibrateSpot: calibrateSpot, Sound: Sound, BADGES: BADGES };
 })(window);

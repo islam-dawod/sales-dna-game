@@ -6,7 +6,7 @@
 (function (root) {
   'use strict';
 
-  var KEY = 'sdna_state_v3';
+  var KEY = 'sdna_state_v4';
   var Q = root.SDNA.Q, NC = root.SDNA.NC;
 
   /* ---------- deterministic RNG (stable demo data) ---------- */
@@ -59,7 +59,7 @@
   /* ---------- default state ---------- */
   function defaults() {
     return {
-      v: 3,
+      v: 4,
       settings: {
         lang: 'ar',
         pin: '1234',
@@ -68,6 +68,9 @@
         ncWeights: null,        // candidate 6-dimension weights (null => spec defaults)
         focusEnabled: true,     // bonus focus level
         focusInDecision: false, // never part of the match score unless proven
+        focusWeight: 0,         // stays 0 until company data proves it separates
+        spotDebug: false,       // show hitboxes (manager / developer only)
+        spotValidated: null,    // {ok, found, total, at} from the calibration test
         sound: true,
         requirePhone: false,
         requireEmail: false
@@ -84,7 +87,7 @@
       var raw = localStorage.getItem(KEY);
       state = raw ? JSON.parse(raw) : null;
     } catch (e) { state = null; }
-    if (!state || state.v !== 3) { state = defaults(); seed(); save(); }
+    if (!state || state.v !== 4) { state = defaults(); seed(); save(); }
     if (state.settings.focusEnabled === undefined) state.settings.focusEnabled = true;
     return state;
   }
@@ -101,10 +104,27 @@
               'صفدي', 'قاسم', 'نصار', 'دراوشة', 'بدران', 'عوض'];
   var DEPTS = ['B2B', 'Retail', 'Telesales', 'Field'];
 
-  /* --- employee behaviour simulation (12-trait model) --- */
+  /* --- employee behaviour simulation (12-trait model) ---
+     Demo realism: in real companies only part of the traits separate the
+     strong from the weak. SEP = how much this trait separates (0..1).
+     Traits with a low SEP end up similar in all three groups, which is
+     exactly the case the DIFFERENTIATORS screen has to expose.          */
+  var SEP = {
+    target: 1, persistence: 1, resilience: 0.95, accountability: 0.9,
+    commitment: 0.85, motivation: 0.8,
+    discipline: 0.15, learning: 0.1, coachability: 0.12,
+    customer: 0.25, closing: 0.2, initiative: 0.3
+  };
+  var COMMON = 0.74;
+  function biasFor(group, trait) {
+    var g = group === 'strong' ? 0.88 : group === 'medium' ? 0.62 : 0.34;
+    var sep = SEP[trait] == null ? 0.6 : SEP[trait];
+    return COMMON + (g - COMMON) * sep;
+  }
+
   function simAnswer(q, group, rnd) {
-    var bias = group === 'strong' ? 0.86 : group === 'medium' ? 0.62 : 0.36;
-    var want = Math.max(0, Math.min(1, bias + (rnd() - 0.5) * 0.45)) * 100;
+    var bias = biasFor(group, q.trait);
+    var want = Math.max(0, Math.min(1, bias + (rnd() - 0.5) * 0.4)) * 100;
     var best = 0, bd = 1e9;
     q.a.forEach(function (o, i) {
       var d = Math.abs(o.s - want);
@@ -140,13 +160,40 @@
     });
     return max ? sum / max : 0.5;
   }
-  function simNc(group, rnd) {
-    var bias = group === 'strong' ? 0.85 : group === 'medium' ? 0.6 : 0.34;
+  /* 12 months of target achievement — strong staff are also more consistent */
+  function monthly(group, rnd) {
+    var base = group === 'strong' ? 118 : group === 'medium' ? 92 : 66;
+    var spread = group === 'strong' ? 12 : group === 'medium' ? 20 : 34;
+    var out = [];
+    for (var m = 0; m < 12; m++) {
+      var pct = Math.round(base + (rnd() - 0.5) * 2 * spread);
+      out.push({ m: '2025-' + String(m + 1).padStart(2, '0'), pct: Math.max(18, pct) });
+    }
+    return out;
+  }
+
+  var NC_SEP = { target: 1, persist: 1, account: 0.9, commit: 0.85, discipline: 0.15, learn: 0.1 };
+  function mainDim(q) {
+    var best = null, bv = -1;
+    NC.DIM_KEYS.forEach(function (k) {
+      var tot = 0;
+      q.a.forEach(function (o) { tot += o.p[k] || 0; });
+      if (tot > bv) { bv = tot; best = k; }
+    });
+    return best;
+  }
+  function ncBias(group, dim) {
+    var g = group === 'strong' ? 0.86 : group === 'medium' ? 0.6 : 0.32;
+    var sep = NC_SEP[dim] == null ? 0.6 : NC_SEP[dim];
+    return 0.72 + (g - 0.72) * sep;
+  }
+
+  function simNc(group, rnd, aud) {
     var answers = [];
-    NC.plan().forEach(function (blk) {
+    NC.plan(aud || 'cand').forEach(function (blk) {
       blk.qs.forEach(function (qid) {
         var q = NC.get(qid);
-        var want = Math.max(0, Math.min(1, bias + (rnd() - 0.5) * 0.5));
+        var want = Math.max(0, Math.min(1, ncBias(group, mainDim(q)) + (rnd() - 0.5) * 0.42));
         var best = 0, bd = 1e9;
         q.a.forEach(function (o, i) {
           var d = Math.abs(optQuality(q, i) - want);
@@ -204,7 +251,8 @@
         attendance: Math.round(g === 'strong' ? 95 + rnd() * 5 : g === 'medium' ? 88 + rnd() * 8 : 78 + rnd() * 10),
         lateDays: Math.round(g === 'strong' ? rnd() * 3 : g === 'medium' ? 3 + rnd() * 6 : 8 + rnd() * 12),
         managerScore: Math.round(g === 'strong' ? 8 + rnd() * 2 : g === 'medium' ? 6 + rnd() * 2 : 3 + rnd() * 3),
-        group: g, assessment: null, focus: null, followups: []
+        group: g, assessment: null, nc22: null, focus: null, followups: [],
+        history: monthly(g, rnd)
       };
       if (i % 8 !== 7) {
         e.assessment = {
@@ -212,6 +260,16 @@
           completedAt: '2026-0' + (1 + (i % 8)) + '-1' + (i % 9), xp: 0, badges: []
         };
       }
+      /* two deliberate classification conflicts for the ⚠ REVIEW CLASSIFICATION case */
+      if (i === 2) {            /* manager says STRONG, the numbers say otherwise */
+        e.history = monthly('low', rnd);
+        e.targetPct = 74; e.attendance = 86; e.lateDays = 9; e.managerScore = 8;
+      }
+      if (i === 19) {           /* manager says LOW, the numbers are good */
+        e.history = monthly('strong', rnd);
+        e.targetPct = 121; e.attendance = 97; e.lateDays = 1; e.managerScore = 5;
+      }
+      if (i % 8 !== 7) e.nc22 = { answers: simNc(g, rnd, 'emp'), completedAt: '2026-08-01' };
       if (i % 3 !== 2) e.focus = simFocus(g, rnd);      // ~2/3 of the team played the mini-games
       return e;
     });
@@ -233,7 +291,14 @@
       };
       if (st >= 2) c.nc = { answers: simNc(g, rnd), completedAt: c.createdAt, xp: 25 * 50 + 5 * 500 };
       if (st >= 3) c.focus = simFocus(g, rnd);
-      if (st >= 7) c.followups = [{ day: 90, targetPct: 118 }];
+      if (st >= 7) {
+        c.followups = [{ day: 90, targetPct: 118 }];
+        c.reviews = [
+          { day: 30, attendance: 96, discipline: 88, learning: 90, coachability: 92, effort: 94 },
+          { day: 90, targetPct: 121, sales: 121000, persistence: 90, managerRating: 9 }
+        ];
+        c.hiredAt = '2026-03-01';
+      }
       return c;
     });
   }

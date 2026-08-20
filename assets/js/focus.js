@@ -1,34 +1,44 @@
 /* ============================================================
    SALES DNA — BONUS LEVEL: FOCUS & PROCESSING CHALLENGE
-   Game 1  👁 SPOT THE DIFFERENCE  (4 subtle differences, 45s)
-   Game 2  ⚡ QUICK SCAN            (3 rounds, card disappears)
+   Game 1  👁 SPOT THE DIFFERENCE   (4 planned differences, 45s)
+   Game 2  ⚡ QUICK SCAN             (3 rounds, card disappears)
    ------------------------------------------------------------
-   This is NOT an intelligence test and it never feeds the
-   SALES DNA match score. It is reported separately and can only
-   gain weight once company data shows it correlates with results.
+   NOT an intelligence test. It never feeds the SALES DNA match
+   score: it is reported separately and stays at weight 0 until
+   company data proves it separates strong from weak employees.
+
+   Coordinate contract (Part A of the V3 spec):
+   · both panes render the SAME scene geometry (viewBox 700×300)
+   · every difference is stored as NORMALISED 0–1 coordinates
+   · clicks are mapped through the real content box, so letterboxing
+     from preserveAspectRatio can never shift the hit test
+   · the circle is drawn around the DIFFERENCE, never around the click
    ============================================================ */
 (function (root) {
   'use strict';
-  var UI = root.SDNA.UI, Art = root.SDNA.Art;
+  var UI = root.SDNA.UI, Art = root.SDNA.Art, Store = root.SDNA.Store;
   var esc = function (s) { return UI.esc(s); };
   function he() { return UI.getLang() === 'he'; }
   function L(ar, hev) { return he() ? hev : ar; }
 
-  /* ============================================================
-     THE OFFICE SCENE — one high-detail vector scene, two variants
-     with exactly 4 planned, subtle differences.
-     ============================================================ */
-  var HOTSPOTS = [
-    { id: 'clock', x: 450, y: 75,  r: 44, ar: 'عقارب الساعة',        he: 'מחוגי השעון' },
-    { id: 'crm',   x: 536, y: 214, r: 46, ar: 'رقم على شاشة CRM',    he: 'מספר במסך ה-CRM' },
-    { id: 'phones',x: 330, y: 243, r: 40, ar: 'زر صغير في السمّاعة',  he: 'כפתור קטן באוזנייה' },
-    { id: 'plant', x: 604, y: 116, r: 40, ar: 'ورقة في النبتة',      he: 'עלה בעציץ' }
+  /* one shared coordinate system for both images */
+  var VB_W = 700, VB_H = 300;
+  var MIN_HIT_PX = 30;                     /* hit area is always ≥ 30px even if the detail is tiny */
+
+  /* the four planned differences — normalised 0–1, never pixels */
+  var DIFFS = [
+    { id: 'clock',   x: 450 / VB_W, y: 75 / VB_H,  r: 0.055, ar: 'عقارب الساعة',       he: 'מחוגי השעון' },
+    { id: 'crm',     x: 536 / VB_W, y: 214 / VB_H, r: 0.058, ar: 'رقم على شاشة CRM',   he: 'מספר במסך ה-CRM' },
+    { id: 'headset', x: 310 / VB_W, y: 247 / VB_H, r: 0.050, ar: 'زر صغير في السمّاعة', he: 'כפתור קטן באוזנייה' },
+    { id: 'plant',   x: 622 / VB_W, y: 100 / VB_H, r: 0.052, ar: 'ورقة في النبتة',     he: 'עלה בעציץ' }
   ];
 
-  function scene(v) {                     /* v = 'a' | 'b' */
+  /* ============================================================
+     THE OFFICE SCENE — two variants, exactly 4 subtle differences
+     ============================================================ */
+  function scene(v, debug) {
     var b = v === 'b';
     var out = [];
-    /* room */
     out.push('<rect width="700" height="300" fill="#0e1729"/>');
     out.push('<rect y="250" width="700" height="50" fill="#0a1120"/>');
     out.push('<path d="M0 250 h700" stroke="#22304a" stroke-width="2"/>');
@@ -50,59 +60,66 @@
         (i % 2 ? '#3b82f6' : '#22d3ee') + '" opacity=".8"/>');
     });
     out.push('<path d="M208 112 h146" stroke="#2b3d5c" stroke-width="2"/>');
-    /* clock — DIFFERENCE 1: minute hand position */
+    /* 1 · clock — minute hand */
     out.push('<circle cx="450" cy="75" r="34" fill="#0b1526" stroke="#8494ad" stroke-width="4"/>');
     for (var i = 0; i < 12; i++) {
       var a = i * Math.PI / 6;
       out.push('<circle cx="' + (450 + 27 * Math.sin(a)).toFixed(1) + '" cy="' + (75 - 27 * Math.cos(a)).toFixed(1) +
         '" r="1.6" fill="#8494ad"/>');
     }
-    out.push('<path d="M450 75 l14 -10" stroke="#e5e7eb" stroke-width="3.5" stroke-linecap="round"/>');   /* hour */
-    out.push(b ? '<path d="M450 75 l6 22" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>'
-               : '<path d="M450 75 l20 12" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>');  /* minute */
+    out.push('<path d="M450 75 l14 -10" stroke="#e5e7eb" stroke-width="3.5" stroke-linecap="round"/>');
+    out.push(b ? '<path d="M450 75 l5 23" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>'
+               : '<path d="M450 75 l21 11" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>');
     out.push('<circle cx="450" cy="75" r="3" fill="#e5e7eb"/>');
-    /* shelf + plant — DIFFERENCE 4: one leaf missing */
+    /* 4 · plant — one leaf */
     out.push('<rect x="540" y="150" width="130" height="7" rx="3" fill="#22304a"/>');
     out.push('<path d="M592 150 l-10 -26 h44 l-10 26 z" fill="#7c4a2d"/>');
     out.push('<path d="M604 124 C596 108 578 100 566 104 C572 120 588 126 604 124 z" fill="#10b981" opacity=".9"/>');
     out.push('<path d="M604 124 C612 106 632 98 644 104 C638 120 620 128 604 124 z" fill="#34d399" opacity=".9"/>');
-    if (!b) out.push('<path d="M604 122 C602 104 610 88 622 82 C628 98 618 116 604 122 z" fill="#059669" opacity=".95"/>');
+    if (!b) out.push('<path d="M606 122 C606 104 616 90 630 86 C634 102 622 116 606 122 z" fill="#059669" opacity=".95"/>');
     out.push('<path d="M604 126 v-14" stroke="#065f46" stroke-width="3"/>');
-    /* two sales people behind the desk */
-    out.push(person(250, '#4f8cff', '#8b5cf6'));
-    out.push(person(410, '#22d3ee', '#3b82f6'));
+    /* people */
+    out.push(person(250));
+    out.push(person(410));
     /* desk */
     out.push('<rect y="250" width="700" height="18" fill="#1b2942"/>');
     out.push('<rect y="268" width="700" height="10" fill="#131f34"/>');
-    /* monitor A — chart */
+    /* monitor A */
     out.push('<rect x="86" y="176" width="104" height="70" rx="5" fill="#050b16" stroke="#33415c" stroke-width="3"/>');
     out.push('<path d="M96 232 l18 -22 l16 12 l20 -30 l18 22" stroke="#22d3ee" stroke-width="3" fill="none"/>');
     out.push('<rect x="128" y="246" width="20" height="6" fill="#33415c"/>');
-    /* monitor B — CRM card, DIFFERENCE 2: one digit */
+    /* 2 · CRM monitor — one digit */
     out.push('<rect x="470" y="168" width="130" height="80" rx="5" fill="#050b16" stroke="#33415c" stroke-width="3"/>');
     out.push('<text x="480" y="186" font-size="10" fill="#7f95bb" font-family="sans-serif">CRM · CUSTOMER</text>');
     out.push('<text x="480" y="202" font-size="11" fill="#cfe0ff" font-family="sans-serif">SAMIR K.</text>');
-    out.push('<text x="480" y="219" font-size="15" fill="#34d399" font-family="monospace">' + (b ? '18,900' : '18,400') + '</text>');
-    out.push('<text x="480" y="236" font-size="10" fill="#7f95bb" font-family="sans-serif">STATUS: INTERESTED</text>');
+    out.push('<text x="480" y="221" font-size="16" fill="#34d399" font-family="monospace">' + (b ? '18,900' : '18,400') + '</text>');
+    out.push('<text x="480" y="238" font-size="10" fill="#7f95bb" font-family="sans-serif">STATUS: INTERESTED</text>');
     out.push('<rect x="525" y="248" width="20" height="5" fill="#33415c"/>');
-    /* headset on desk — DIFFERENCE 3: small button */
+    /* 3 · headset — small button */
     out.push('<path d="M312 246 a20 20 0 0 1 38 0" stroke="#111827" stroke-width="6" fill="none"/>');
     out.push('<rect x="304" y="240" width="12" height="16" rx="5" fill="#1f2937"/>');
     out.push('<rect x="346" y="240" width="12" height="16" rx="5" fill="#1f2937"/>');
-    if (!b) out.push('<circle cx="310" cy="248" r="4" fill="#22d3ee"/>');
-    /* desk phone */
+    if (!b) out.push('<circle cx="310" cy="247" r="3.6" fill="#22d3ee"/>');
+    /* desk phone / cup / documents */
     out.push('<rect x="200" y="234" width="46" height="16" rx="3" fill="#1f2937"/>');
     out.push('<path d="M204 234 q22 -16 38 0" stroke="#111827" stroke-width="6" fill="none"/>');
-    /* coffee cup */
     out.push('<path d="M382 232 h26 l-3 18 h-20 z" fill="#e5e7eb"/>');
     out.push('<path d="M408 236 a7 7 0 0 1 0 10" stroke="#e5e7eb" stroke-width="3" fill="none"/>');
     out.push('<path d="M386 236 h18" stroke="#b45309" stroke-width="3"/>');
-    /* documents */
     out.push('<rect x="620" y="238" width="52" height="12" rx="2" fill="#e5e7eb" opacity=".85"/>');
     out.push('<rect x="624" y="232" width="52" height="12" rx="2" fill="#cbd5e1" opacity=".85"/>');
-    return '<svg viewBox="0 0 700 300" class="spot-svg" xmlns="http://www.w3.org/2000/svg">' + out.join('') + '</svg>';
+    /* debug hitboxes — manager / developer only, never a candidate */
+    if (debug) {
+      DIFFS.forEach(function (d, i) {
+        var cx = d.x * VB_W, cy = d.y * VB_H, rr = Math.max(MIN_HIT_PX, d.r * VB_W);
+        out.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + rr + '" fill="none" stroke="#f472b6" stroke-width="2" stroke-dasharray="5 4"/>');
+        out.push('<text x="' + cx + '" y="' + (cy + 5) + '" text-anchor="middle" font-size="14" fill="#f472b6" font-family="monospace">' + (i + 1) + '</text>');
+      });
+    }
+    return '<svg viewBox="0 0 ' + VB_W + ' ' + VB_H + '" preserveAspectRatio="xMidYMid meet" ' +
+      'class="spot-svg" xmlns="http://www.w3.org/2000/svg">' + out.join('') + '</svg>';
 
-    function person(cx, c1, c2) {
+    function person(cx) {
       return '<g>' +
         '<path d="M' + (cx - 46) + ' 250 c0 -34 20 -54 46 -54 c26 0 46 20 46 54 z" fill="url(#gSuit)" opacity=".95"/>' +
         '<circle cx="' + cx + '" cy="176" r="26" fill="url(#gSkin)"/>' +
@@ -116,8 +133,32 @@
     }
   }
 
+  /* ---------- geometry: real content box of a letterboxed svg ---------- */
+  function contentBox(svgEl) {
+    var r = svgEl.getBoundingClientRect();
+    var vbAR = VB_W / VB_H, boxAR = r.width / r.height, cw, ch, ox, oy;
+    if (boxAR > vbAR) { ch = r.height; cw = ch * vbAR; ox = (r.width - cw) / 2; oy = 0; }
+    else { cw = r.width; ch = cw / vbAR; ox = 0; oy = (r.height - ch) / 2; }
+    return { left: r.left + ox, top: r.top + oy, w: cw, h: ch, ox: ox, oy: oy };
+  }
+  function normalise(ev, svgEl) {
+    var c = contentBox(svgEl);
+    return { nx: (ev.clientX - c.left) / c.w, ny: (ev.clientY - c.top) / c.h, box: c };
+  }
+  function hitTest(nx, ny, box, taken) {
+    var best = null, bestD = Infinity;
+    DIFFS.forEach(function (d) {
+      if (taken && taken[d.id]) return;
+      var dx = (nx - d.x) * box.w, dy = (ny - d.y) * box.h;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var rad = Math.max(MIN_HIT_PX, d.r * box.w);
+      if (dist <= rad && dist < bestD) { bestD = dist; best = d; }
+    });
+    return best;
+  }
+
   /* ============================================================
-     QUICK SCAN — customer cards close to the real sales desk
+     QUICK SCAN
      ============================================================ */
   var NAMES = ['سمير خطيب', 'رانيا حداد', 'محمود عابد', 'ليلى نصار', 'فادي شاهين', 'دانا قاسم'];
   var SERVICES = ['زرع أسنان', 'تقويم شفاف', 'تبييض', 'تركيبات زيركون', 'حشوات تجميلية', 'جراحة لثة'];
@@ -130,25 +171,21 @@
     var hour = 9 + Math.floor(rnd() * 10);
     var min = rnd() > .5 ? '30' : '00';
     var fields = [
-      { k: 'name',    ar: 'الاسم',            he: 'שם',            v: NAMES[Math.floor(rnd() * NAMES.length)] },
-      { k: 'service', ar: 'الخدمة المطلوبة',  he: 'שירות',         v: SERVICES[Math.floor(rnd() * SERVICES.length)] },
-      { k: 'price',   ar: 'السعر المعروض',    he: 'מחיר',          v: price.toLocaleString('en-US') },
-      { k: 'calls',   ar: 'عدد الاتصالات',    he: 'מספר שיחות',    v: String(calls) },
-      { k: 'time',    ar: 'وقت مناسب للاتصال', he: 'זמן מועדף',    v: hour + ':' + min },
-      { k: 'status',  ar: 'الحالة',           he: 'סטטוס',         v: STATUS[Math.floor(rnd() * STATUS.length)] },
-      { k: 'follow',  ar: 'موعد المتابعة',    he: 'מועד מעקב',     v: ['اليوم', 'غداً', 'بعد يومين', 'الأسبوع القادم'][Math.floor(rnd() * 4)] },
-      { k: 'note',    ar: 'ملاحظة',           he: 'הערה',          v: NOTES[Math.floor(rnd() * NOTES.length)] }
+      { k: 'name',    ar: 'الاسم',             he: 'שם',         v: NAMES[Math.floor(rnd() * NAMES.length)] },
+      { k: 'service', ar: 'الخدمة المطلوبة',   he: 'שירות',      v: SERVICES[Math.floor(rnd() * SERVICES.length)] },
+      { k: 'price',   ar: 'السعر المعروض',     he: 'מחיר',       v: price.toLocaleString('en-US') },
+      { k: 'calls',   ar: 'عدد الاتصالات',     he: 'מספר שיחות', v: String(calls) },
+      { k: 'time',    ar: 'وقت مناسب للاتصال', he: 'זמן מועדף',  v: hour + ':' + min },
+      { k: 'status',  ar: 'الحالة',            he: 'סטטוס',      v: STATUS[Math.floor(rnd() * STATUS.length)] },
+      { k: 'follow',  ar: 'موعد المتابعة',     he: 'מועד מעקב',  v: ['اليوم', 'غداً', 'بعد يومين', 'الأسبوع القادم'][Math.floor(rnd() * 4)] },
+      { k: 'note',    ar: 'ملاحظة',            he: 'הערה',       v: NOTES[Math.floor(rnd() * NOTES.length)] }
     ];
-    var n = [5, 6, 7][round - 1];
-    var secs = [8, 7, 6][round - 1];
-    return { fields: fields.slice(0, n), secs: secs, price: price, calls: calls };
+    return { fields: fields.slice(0, [5, 6, 7][round - 1]), secs: [8, 7, 6][round - 1], price: price, calls: calls };
   }
 
   function questionsFor(c, rnd) {
     var pool = c.fields.filter(function (f) { return f.k !== 'name'; });
-    var picked = [];
-    var idx = [0, 1, 2, 3, 4, 5, 6].filter(function (i) { return i < pool.length; });
-    /* two questions per round on different fields */
+    var idx = pool.map(function (_, i) { return i; }), picked = [];
     for (var k = 0; k < 2 && idx.length; k++) {
       var j = Math.floor(rnd() * idx.length);
       picked.push(pool[idx[j]]); idx.splice(j, 1);
@@ -163,8 +200,8 @@
         follow:  L('ما هو موعد المتابعة؟', 'מה מועד המעקב?'),
         note:    L('ما هي الملاحظة المسجّلة؟', 'מה ההערה שנרשמה?')
       }[f.k];
-      var opts = distractors(f, c, rnd);
-      return { q: qtext, opts: opts.list, correct: opts.correct, field: f.k };
+      var o = distractors(f, c, rnd);
+      return { q: qtext, opts: o.list, correct: o.correct, field: f.k };
     });
   }
 
@@ -177,10 +214,8 @@
       list = [c.calls, c.calls + 1, Math.max(1, c.calls - 1), c.calls + 2].map(String);
     } else if (f.k === 'follow') {
       list = ['اليوم', 'غداً', 'بعد يومين', 'الأسبوع القادم'];
-      if (list.indexOf(f.v) < 0) list[0] = f.v;
     } else if (f.k === 'status') {
       list = STATUS.slice();
-      if (list.indexOf(f.v) < 0) list[0] = f.v;
     } else if (f.k === 'service') {
       list = [f.v].concat(SERVICES.filter(function (s) { return s !== f.v; }).slice(0, 3));
     } else if (f.k === 'time') {
@@ -190,12 +225,14 @@
       list = [f.v].concat(NOTES.filter(function (s) { return s !== f.v; }).slice(0, 3));
     }
     var uniq = [];
-    list.forEach(function (x) { if (uniq.indexOf(x) < 0) uniq.push(x); });
-    while (uniq.length < 4) uniq.push(uniq[0] + ' ');
-    var shuffled = uniq.slice(0, 4).sort(function () { return rnd() - 0.5; });
-    var correctIdx = shuffled.indexOf(String(f.v));
-    if (correctIdx < 0) { shuffled[0] = String(f.v); correctIdx = 0; }
-    return { list: shuffled, correct: correctIdx };
+    list.forEach(function (x) { x = String(x); if (uniq.indexOf(x) < 0) uniq.push(x); });
+    if (uniq.indexOf(String(f.v)) < 0) uniq[0] = String(f.v);
+    var four = uniq.slice(0, 4);
+    while (four.length < 4) four.push(four[0] + ' ');
+    var shuffled = four.sort(function () { return rnd() - 0.5; });
+    var ci = shuffled.indexOf(String(f.v));
+    if (ci < 0) { shuffled[0] = String(f.v); ci = 0; }
+    return { list: shuffled, correct: ci };
   }
 
   /* ============================================================
@@ -209,20 +246,15 @@
     var clicks = s.found + s.wrong;
     var precision = clicks ? s.found / clicks : 0;
     var scanRatio = q.total ? q.correct / q.total : 0;
-
     var avgDetect = s.times && s.times.length
       ? s.times.reduce(function (a, b) { return a + b; }, 0) / s.times.length : s.limit;
     var speedSpot = clamp01(1 - (avgDetect - 6) / 22);
     var speedScan = clamp01(1 - (q.avg - 2) / 6);
-
     var accuracy = 100 * (0.35 * foundRatio + 0.25 * precision + 0.40 * scanRatio);
     var speed = 100 * (0.5 * speedSpot + 0.5 * speedScan);
-    var expected = 6;                                  // 3 rounds × 2 questions
-    var completion = 100 * (0.5 * foundRatio + 0.5 * clamp01(q.total / expected));
-
-    var focus = Math.round(0.6 * accuracy + 0.3 * speed + 0.1 * completion);
+    var completion = 100 * (0.5 * foundRatio + 0.5 * clamp01(q.total / 6));
     return {
-      focus: focus,
+      focus: Math.round(0.6 * accuracy + 0.3 * speed + 0.1 * completion),
       sub: {
         visual:   Math.round(100 * (0.7 * foundRatio + 0.3 * precision)),
         speed:    Math.round(speed),
@@ -232,6 +264,7 @@
       raw: {
         found: s.found, total: s.total, wrong: s.wrong, times: s.times || [],
         elapsed: s.elapsed, first: (s.times && s.times[0]) || null,
+        detections: s.detections || [],
         scanCorrect: q.correct, scanTotal: q.total, scanAvg: q.avg, rounds: q.rounds
       },
       completedAt: raw.completedAt || null
@@ -239,21 +272,148 @@
   }
 
   /* ============================================================
-     RUNNER
+     SPOT THE DIFFERENCE — playable board (shared by game + QA)
+     opts: { debug, calibration, limit, onEnd(result) }
+     ============================================================ */
+  function spotBoard(host, opts) {
+    opts = opts || {};
+    var limit = opts.limit || 45;
+    var debug = !!opts.debug;
+    var found = {}, res = { found: 0, total: DIFFS.length, wrong: 0, times: [], detections: [], elapsed: 0, limit: limit };
+    var t0 = performance.now(), ended = false, iv = null;
+    var missTimes = [], cooldownUntil = 0;
+
+    host.innerHTML =
+      '<div class="fx-top"><div class="fx-title">👁 SPOT THE DIFFERENCE' + (debug ? ' · DEBUG' : '') + '</div>' +
+        '<div class="fx-stat"><b id="fxFound">0</b>/' + DIFFS.length + ' ' + esc(L('اختلافات', 'הבדלים')) + '</div>' +
+        '<div class="fx-timer" id="fxTimer" dir="ltr">00:' + String(limit).padStart(2, '0') + '</div></div>' +
+      '<div class="fx-bar"><i id="fxBar" style="width:100%"></i></div>' +
+      '<div class="spot-wrap">' +
+        pane('a') + pane('b') +
+      '</div>' +
+      '<div class="fx-hint muted sm" id="fxHint">' +
+        esc(L('اضغط على المكان الذي تلاحظ فيه اختلافاً', 'לחץ על המקום שבו זיהית הבדל')) + '</div>';
+
+    function pane(v) {
+      return '<div class="spot-pane" data-v="' + v + '">' + scene(v, debug) +
+        '<span class="spot-lbl">' + v.toUpperCase() + '</span>' +
+        '<div class="spot-marks" dir="ltr"></div></div>';
+    }
+
+    var timerNode = host.querySelector('#fxTimer'), barNode = host.querySelector('#fxBar');
+    iv = setInterval(function () {
+      var left = limit - (performance.now() - t0) / 1000;
+      if (left <= 0) return finish();
+      timerNode.textContent = '00:' + String(Math.ceil(left)).padStart(2, '0');
+      barNode.style.width = (100 * left / limit) + '%';
+      if (left < 10) timerNode.classList.add('urgent');
+    }, 100);
+
+    /* keep every marks layer exactly over the rendered image content box */
+    function syncLayers() {
+      UI.$$('.spot-pane', host).forEach(function (pane) {
+        var svg = pane.querySelector('svg'), layer = pane.querySelector('.spot-marks');
+        var pr = pane.getBoundingClientRect(), c = contentBox(svg);
+        layer.style.left = (c.left - pr.left) + 'px';
+        layer.style.top = (c.top - pr.top) + 'px';
+        layer.style.width = c.w + 'px';
+        layer.style.height = c.h + 'px';
+      });
+    }
+    syncLayers();
+    var ro = root.ResizeObserver ? new ResizeObserver(syncLayers) : null;
+    if (ro) UI.$$('.spot-pane', host).forEach(function (p) { ro.observe(p); });
+    root.addEventListener('resize', syncLayers);
+
+    UI.$$('.spot-pane', host).forEach(function (pane) {
+      pane.addEventListener('click', function (ev) {
+        if (ended) return;
+        var now = performance.now();
+        if (now < cooldownUntil) return;                     /* anti-spam cooldown */
+        var svg = pane.querySelector('svg');
+        var m = normalise(ev, svg);
+        if (m.nx < 0 || m.nx > 1 || m.ny < 0 || m.ny > 1) return;   /* clicked the letterbox */
+        var hit = hitTest(m.nx, m.ny, m.box, found);
+        if (hit) {
+          found[hit.id] = true;
+          res.found++;
+          var t = Math.round((now - t0) / 100) / 10;
+          res.times.push(t);
+          res.detections.push({ id: hit.id, t: t });
+          host.querySelector('#fxFound').textContent = res.found;
+          markAll(hit, res.found);
+          root.SDNA.Game.Sound.pick();
+          if (res.found === DIFFS.length) setTimeout(finish, 550);
+        } else {
+          res.wrong++;
+          missFlash(pane, ev);
+          root.SDNA.Game.Sound.tap();
+          missTimes.push(now);
+          missTimes = missTimes.filter(function (x) { return now - x < 1500; });
+          if (missTimes.length >= 3) { cooldownUntil = now + 700; missTimes = []; flashHint(); }
+        }
+      });
+    });
+
+    /* the circle is anchored to the DIFFERENCE coordinate in BOTH panes */
+    function markAll(d, n) {
+      syncLayers();
+      UI.$$('.spot-pane', host).forEach(function (pane) {
+        var layer = pane.querySelector('.spot-marks');
+        var size = Math.max(MIN_HIT_PX * 1.9, d.r * layer.offsetWidth * 2.1);
+        var m = document.createElement('i');
+        m.className = 'spot-mark ok';
+        m.style.left = (d.x * 100) + '%';
+        m.style.top = (d.y * 100) + '%';
+        m.style.width = m.style.height = size + 'px';
+        m.dataset.n = n;
+        layer.appendChild(m);
+      });
+    }
+    function missFlash(pane, ev) {
+      var pr = pane.getBoundingClientRect();
+      var m = document.createElement('i');
+      m.className = 'spot-mark miss';
+      m.style.left = (ev.clientX - pr.left) + 'px';
+      m.style.top = (ev.clientY - pr.top) + 'px';
+      pane.appendChild(m);
+      setTimeout(function () { m.remove(); }, 650);
+    }
+    function flashHint() {
+      var h = host.querySelector('#fxHint');
+      if (!h) return;
+      h.classList.add('cool');
+      setTimeout(function () { h.classList.remove('cool'); }, 700);
+    }
+
+    function finish() {
+      if (ended) return;
+      ended = true;
+      clearInterval(iv);
+      if (ro) ro.disconnect();
+      root.removeEventListener('resize', syncLayers);
+      res.elapsed = Math.round((performance.now() - t0) / 100) / 10;
+      if (opts.onEnd) opts.onEnd(res);
+    }
+    return { stop: finish, res: res };
+  }
+
+  /* ============================================================
+     RUNNER — full bonus level
      ============================================================ */
   function run(subject, done) {
     var app = document.getElementById('app');
     var rnd = Math.random;
     var res = {
-      spot: { found: 0, total: HOTSPOTS.length, wrong: 0, times: [], elapsed: 0, limit: 45 },
+      spot: { found: 0, total: DIFFS.length, wrong: 0, times: [], detections: [], elapsed: 0, limit: 45 },
       scan: { correct: 0, total: 0, avg: 0, rounds: 3 }
     };
     var scanTimes = [];
     var name = (subject && subject.name || '').split(' ')[0];
+    var debug = !!(Store.get().settings.spotDebug);
 
     intro();
 
-    /* ---------- unlock screen ---------- */
     function intro() {
       app.innerHTML = '<div class="screen focus-intro">' +
         '<div class="fx-hero">' + Art.hero({ pose: 'point', expr: 'wow' }) + '</div>' +
@@ -263,12 +423,11 @@
           '<p class="big">' + esc(L('جاهز لاختبار تركيزك؟', 'מוכן לבדוק את הריכוז שלך?')) + '</p>' +
           '<p class="muted">' + esc(L('تحديان قصيران · حوالي دقيقة ونصف · الوقت يبدأ عند الضغط',
                                       'שני אתגרים קצרים · כדקה וחצי · הזמן מתחיל בלחיצה')) + '</p>' +
-          '<button class="btn btn-primary btn-xl" id="fxStart">' + esc(L('ابدأ', 'התחל')) + '</button>' +
+          '<button class="btn btn-primary btn-xl" id="fxStart">' + esc(L('ابدأ التحدي', 'התחל את האתגר')) + '</button>' +
         '</div></div>';
       document.getElementById('fxStart').onclick = function () { root.SDNA.Game.Sound.unlock(); spotIntro(); };
     }
 
-    /* ---------- game 1: brief ---------- */
     function spotIntro() {
       app.innerHTML = '<div class="screen focus-brief">' +
         '<div class="fin-card pop">' +
@@ -276,98 +435,19 @@
           '<h1>👁 SPOT THE DIFFERENCE</h1>' +
           '<p class="big">' + esc(L('هناك 4 اختلافات بين الصورتين. اكتشفها قبل انتهاء الوقت.',
                                     'יש 4 הבדלים בין התמונות. מצא אותם לפני שהזמן נגמר.')) + '</p>' +
-          '<p class="muted sm">' + esc(L('الاختلافات صغيرة جداً · كل ضغطة خاطئة تُحتسب',
-                                         'ההבדלים קטנים מאוד · כל לחיצה שגויה נרשמת')) + '</p>' +
+          '<p class="muted sm">' + esc(L('الاختلافات صغيرة جداً · اضغط بدقة · الضغط الخاطئ يُحتسب',
+                                         'ההבדלים קטנים מאוד · לחץ בדיוק · לחיצה שגויה נרשמת')) + '</p>' +
           '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ · 45 ثانية', 'התחל · 45 שניות')) + '</button>' +
         '</div></div>';
-      document.getElementById('go').onclick = spotPlay;
-    }
-
-    /* ---------- game 1: play ---------- */
-    function spotPlay() {
-      var t0 = performance.now(), limit = 45, ended = false;
-      var found = {};
-      app.innerHTML = '<div class="screen focus-game">' +
-        '<div class="fx-top"><div class="fx-title">👁 SPOT THE DIFFERENCE</div>' +
-          '<div class="fx-stat"><b id="fxFound">0</b>/4 ' + esc(L('اختلافات', 'הבדלים')) + '</div>' +
-          '<div class="fx-timer" id="fxTimer" dir="ltr">00:45</div></div>' +
-        '<div class="fx-bar"><i id="fxBar" style="width:100%"></i></div>' +
-        '<div class="spot-wrap">' +
-          '<div class="spot-pane" data-v="a">' + scene('a') + '<span class="spot-lbl">A</span><div class="spot-marks"></div></div>' +
-          '<div class="spot-pane" data-v="b">' + scene('b') + '<span class="spot-lbl">B</span><div class="spot-marks"></div></div>' +
-        '</div>' +
-        '<div class="fx-hint muted sm">' + esc(L('اضغط على المكان الذي تلاحظ فيه اختلافاً',
-                                                 'לחץ על המקום שבו זיהית הבדל')) + '</div>' +
-        '</div>';
-
-      var timerNode = document.getElementById('fxTimer'), barNode = document.getElementById('fxBar');
-      var iv = setInterval(function () {
-        var left = limit - (performance.now() - t0) / 1000;
-        if (left <= 0) { finishSpot(); return; }
-        timerNode.textContent = '00:' + String(Math.ceil(left)).padStart(2, '0');
-        barNode.style.width = (100 * left / limit) + '%';
-        if (left < 10) timerNode.classList.add('urgent');
-      }, 100);
-
-      UI.$$('.spot-pane', app).forEach(function (pane) {
-        pane.onclick = function (ev) {
-          if (ended) return;
-          var svg = pane.querySelector('svg').getBoundingClientRect();
-          var x = (ev.clientX - svg.left) / svg.width * 700;
-          var y = (ev.clientY - svg.top) / svg.height * 300;
-          var hit = null;
-          HOTSPOTS.forEach(function (h) {
-            if (found[h.id]) return;
-            var d = Math.sqrt(Math.pow(x - h.x, 2) + Math.pow(y - h.y, 2));
-            if (d <= h.r) hit = h;
-          });
-          if (hit) {
-            found[hit.id] = true;
-            res.spot.found++;
-            res.spot.times.push(Math.round((performance.now() - t0) / 100) / 10);
-            document.getElementById('fxFound').textContent = res.spot.found;
-            mark(hit, 'ok');
-            root.SDNA.Game.Sound.pick();
-            if (res.spot.found === HOTSPOTS.length) setTimeout(finishSpot, 500);
-          } else {
-            res.spot.wrong++;
-            pane.classList.remove('shake');
-            void pane.offsetWidth;
-            pane.classList.add('shake');
-            missMark(pane, ev);
-            root.SDNA.Game.Sound.tap();
-          }
-        };
-      });
-
-      function mark(h, kind) {
-        UI.$$('.spot-pane', app).forEach(function (pane) {
-          var m = document.createElement('i');
-          m.className = 'spot-mark ' + kind;
-          m.style.insetInlineStart = (h.x / 700 * 100) + '%';
-          m.style.top = (h.y / 300 * 100) + '%';
-          m.style.width = m.style.height = (h.r * 1.6 / 700 * 100) + '%';
-          pane.querySelector('.spot-marks').appendChild(m);
+      document.getElementById('go').onclick = function () {
+        app.innerHTML = '<div class="screen focus-game" id="spotHost"></div>';
+        spotBoard(document.getElementById('spotHost'), {
+          debug: debug, limit: 45,
+          onEnd: function (r) { res.spot = r; scanIntro(); }
         });
-      }
-      function missMark(pane, ev) {
-        var box = pane.getBoundingClientRect();
-        var m = document.createElement('i');
-        m.className = 'spot-mark miss';
-        m.style.left = (ev.clientX - box.left) + 'px';
-        m.style.top = (ev.clientY - box.top) + 'px';
-        pane.querySelector('.spot-marks').appendChild(m);
-        setTimeout(function () { m.remove(); }, 700);
-      }
-      function finishSpot() {
-        if (ended) return;
-        ended = true; clearInterval(iv);
-        res.spot.elapsed = Math.round((performance.now() - t0) / 100) / 10;
-        scanIntro();
-      }
+      };
     }
 
-    /* ---------- game 2: brief ---------- */
     function scanIntro() {
       app.innerHTML = '<div class="screen focus-brief">' +
         '<div class="fin-card pop">' +
@@ -382,11 +462,9 @@
       document.getElementById('go').onclick = function () { round(1); };
     }
 
-    /* ---------- game 2: rounds ---------- */
     function round(r) {
       if (r > 3) return finish();
-      var c = card(r, rnd);
-      var qs = questionsFor(c, rnd);
+      var c = card(r, rnd), qs = questionsFor(c, rnd);
       countdown();
 
       function countdown() {
@@ -439,8 +517,7 @@
           }).join('') + '</div></div>';
         UI.$$('.opt', app).forEach(function (btn) {
           btn.onclick = function () {
-            var dt = (performance.now() - t0) / 1000;
-            scanTimes.push(Math.round(dt * 10) / 10);
+            scanTimes.push(Math.round(((performance.now() - t0) / 1000) * 10) / 10);
             var ok = Number(btn.dataset.k) === q.correct;
             if (ok) res.scan.correct++;
             UI.$$('.opt', app).forEach(function (b) { b.disabled = true; b.classList.add('dim'); });
@@ -453,7 +530,6 @@
       }
     }
 
-    /* ---------- done ---------- */
     function finish() {
       res.scan.avg = scanTimes.length
         ? Math.round((scanTimes.reduce(function (a, b) { return a + b; }, 0) / scanTimes.length) * 10) / 10 : 0;
@@ -463,13 +539,60 @@
     }
   }
 
+  /* ============================================================
+     CALIBRATION TEST — admin must hit all 4 before publishing
+     ============================================================ */
+  function calibrate(done) {
+    var app = document.getElementById('app');
+    app.innerHTML = '<div class="screen focus-brief">' +
+      '<div class="fin-card pop">' +
+        '<div class="fx-badge">CALIBRATION</div>' +
+        '<h1>🎯 TEST GAME</h1>' +
+        '<p class="big">' + esc(L('اضغط على كل الاختلافات الأربعة للتحقق من دقة مواقعها قبل النشر.',
+                                  'לחץ על כל ארבעת ההבדלים כדי לאמת את מיקומם לפני פרסום.')) + '</p>' +
+        '<p class="muted sm">' + esc(L('وضع المطوّر: أماكن الضغط ظاهرة', 'מצב מפתח: אזורי הלחיצה מוצגים')) + '</p>' +
+        '<button class="btn btn-primary btn-xl" id="go">' + esc(L('ابدأ الاختبار', 'התחל בדיקה')) + '</button>' +
+      '</div></div>';
+    document.getElementById('go').onclick = function () {
+      app.innerHTML = '<div class="screen focus-game" id="spotHost"></div>';
+      spotBoard(document.getElementById('spotHost'), {
+        debug: true, limit: 120,
+        onEnd: function (r) {
+          var ok = r.found === DIFFS.length;
+          var s = Store.get();
+          s.settings.spotValidated = { ok: ok, found: r.found, total: DIFFS.length,
+            at: new Date().toISOString().slice(0, 16).replace('T', ' '), wrong: r.wrong };
+          Store.save();
+          app.innerHTML = '<div class="screen focus-brief"><div class="fin-card pop">' +
+            '<div class="fin-trophy">' + (ok ? '✅' : '⚠️') + '</div>' +
+            '<h1>' + r.found + '/' + DIFFS.length + (ok ? ' VALIDATED' : ' — NOT VALIDATED') + '</h1>' +
+            '<div class="focus-raw">' + r.detections.map(function (d, i) {
+              var meta = DIFFS.filter(function (x) { return x.id === d.id; })[0];
+              return '<div class="fraw"><small>' + (i + 1) + ' · ' + esc(he() ? meta.he : meta.ar) + '</small><b>' + d.t + 's</b></div>';
+            }).join('') + '</div>' +
+            '<p class="' + (ok ? 'muted' : 'warn') + '">' + esc(ok
+              ? L('كل أزرار الاختلافات في مواقعها الصحيحة — المشهد جاهز للنشر.',
+                  'כל אזורי ההבדלים במקום — הסצנה מאושרת לפרסום.')
+              : L('لم يتم التحقق من كل الاختلافات. لا تنشر المشهد قبل 4/4.',
+                  'לא כל ההבדלים אומתו. אין לפרסם לפני 4/4.')) + '</p>' +
+            '<p class="muted sm">' + esc(L('ضغطات خاطئة أثناء الاختبار', 'לחיצות שגויות בבדיקה')) + ': ' + r.wrong + '</p>' +
+            '<button class="btn btn-primary" id="back">' + esc(L('رجوع', 'חזרה')) + '</button>' +
+            '</div></div>';
+          document.getElementById('back').onclick = function () { if (done) done(s.settings.spotValidated); };
+        }
+      });
+    };
+  }
+
   root.SDNA.Focus = {
-    run: run, scoreFrom: scoreFrom, HOTSPOTS: HOTSPOTS, scene: scene,
+    run: run, calibrate: calibrate, scoreFrom: scoreFrom, spotBoard: spotBoard,
+    scene: scene, DIFFS: DIFFS, VB: { w: VB_W, h: VB_H }, MIN_HIT_PX: MIN_HIT_PX,
+    contentBox: contentBox, normalise: normalise, hitTest: hitTest,
     SUB: {
-      visual:   { ar: 'الانتباه البصري',        he: 'קשב חזותי',        en: 'Visual Attention' },
-      speed:    { ar: 'سرعة المعالجة',          he: 'מהירות עיבוד',     en: 'Processing Speed' },
-      accuracy: { ar: 'الدقة',                  he: 'דיוק',             en: 'Accuracy' },
-      recall:   { ar: 'استيعاب معلومات سريع',   he: 'קליטת מידע מהירה', en: 'Quick Information Recall' }
+      visual:   { ar: 'الانتباه البصري',       he: 'קשב חזותי',        en: 'Visual Attention' },
+      speed:    { ar: 'سرعة المعالجة',         he: 'מהירות עיבוד',     en: 'Processing Speed' },
+      accuracy: { ar: 'الدقة',                 he: 'דיוק',             en: 'Accuracy' },
+      recall:   { ar: 'استيعاب معلومات سريع',  he: 'קליטת מידע מהירה', en: 'Quick Information Recall' }
     }
   };
 })(window);

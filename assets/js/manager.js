@@ -14,11 +14,14 @@
     { k: 'cand', i: '🚀', t: 'nav_cand' },
     { k: 'dna', i: '🧬', t: 'nav_dna' },
     { k: 'pattern', i: '🤖', t: 'nav_pattern' },
+    { k: 'focus', i: '🧠', t: 'nav_focus' },
+    { k: 'predict', i: '🎯', t: 'nav_predict' },
     { k: 'compare', i: '⚖️', t: 'nav_compare' },
     { k: 'questions', i: '❓', t: 'nav_questions' },
     { k: 'settings', i: '⚙️', t: 'nav_settings' }
   ];
 
+  function LL(ar, he) { return UI.getLang() === 'he' ? he : ar; }
   function st() { return Store.get(); }
   function empDNA(e) { return e.assessment ? Engine.dna(e.assessment.answers) : null; }
   function candDNA(c) { var a = Engine.candAnswers(c); return a.length ? Engine.dna(a) : null; }
@@ -54,10 +57,12 @@
     var m = document.getElementById('mgrMain');
     if (view && view.type === 'emp') return m.innerHTML = empProfile(view.id), bindEmp(m);
     if (view && view.type === 'cand') return m.innerHTML = candProfile(view.id), bindCand(m);
-    var fns = { dash: dash, emp: employees, cand: candidates, dna: companyDNA, pattern: patterns, questions: questions, compare: compare, settings: settings };
+    var fns = { dash: dash, emp: employees, cand: candidates, dna: companyDNA, pattern: patterns,
+                focus: focusTab, predict: predictTab, questions: questions, compare: compare, settings: settings };
     m.innerHTML = fns[tab]();
-    ({ emp: bindEmployees, cand: bindCandidates, pattern: bindPatterns, compare: bindCompare, settings: bindSettings, dash: bindDash })[tab] &&
-      ({ emp: bindEmployees, cand: bindCandidates, pattern: bindPatterns, compare: bindCompare, settings: bindSettings, dash: bindDash })[tab](m);
+    var binds = { emp: bindEmployees, cand: bindCandidates, pattern: bindPatterns, compare: bindCompare,
+                  settings: bindSettings, dash: bindDash, focus: bindFocus, predict: bindPredict };
+    if (binds[tab]) binds[tab](m);
   }
 
   function head(title, sub, extra) {
@@ -224,6 +229,7 @@
     var out = '<button class="btn btn-ghost btn-xs" id="back">‹ ' + esc(T('back')) + '</button>' +
       head(e.name, e.dept + ' · ' + e.code + ' · ' + e.startDate,
         '<div><button class="btn" id="editEmp">✎</button> <button class="btn" onclick="window.print()">' + esc(T('print')) + '</button></div>');
+    out += perfBlock(e);
     out += '<div class="grid2">';
     out += '<div class="card"><h3>PERFORMANCE</h3>' +
       '<div class="kpis sm">' + kpi('🎯', e.targetPct + '%', T('target_pct'), '#3b82f6') +
@@ -231,9 +237,6 @@
       kpi('🕘', e.attendance + '%', T('attendance'), '#22d3ee') +
       kpi('⏰', e.lateDays, T('late'), '#f59e0b') +
       kpi('⭐', e.managerScore + '/10', T('mgr_score'), '#8b5cf6') + '</div>' +
-      '<div class="split"><div><small class="muted">' + esc(T('manager_says')) + '</small><br><span class="pill" style="--c:' + gcolor(e.group) + '">' + esc(gname(e.group)) + '</span></div>' +
-      '<div><small class="muted">' + esc(T('data_says')) + '</small><br><span class="pill" style="--c:' + gcolor(bc.dataGroup) + '">' + esc(gname(bc.dataGroup)) + '</span></div></div>' +
-      (bc.mismatch ? '<div class="alert warn-box">⚠ ' + esc(T('data_conflict')) + '</div>' : '') +
       '</div>';
 
     if (d) {
@@ -266,7 +269,49 @@
         }).join('') + '</div></div>'
         : '<p class="muted">' + esc(T('focus_nodata')) + '</p>') +
       '<button class="btn" data-focus-emp="' + e.id + '">▶ ' + esc(T('play_focus')) + '</button></div>';
+    out += '<div class="card"><h3>⚡ ' + esc(T('mode_quick')) + '</h3>' +
+      (e.nc22 ? '<p class="ok-line">✅ ' + esc(LL('أجاب على نفس مقياس المرشحين — إجاباته تُستخدم في تحليل جودة الأسئلة.',
+                  'ענה על אותו מדד כמו המועמדים — התשובות מזינות את ניתוח איכות השאלות.')) + '</p>' +
+                '<p class="muted sm">' + e.nc22.answers.length + ' ' + esc(T('q_of')) + ' · ' + esc(e.nc22.completedAt || '') + '</p>'
+              : '<p class="muted">' + esc(LL('لم يجب بعد على المقياس المشترك (22 موقفاً) — بدونه لا يدخل في مقارنة الأسئلة.',
+                  'עוד לא ענה על המדד המשווה (22 תרחישים) — בלעדיו הוא לא נכנס להשוואת השאלות.')) + '</p>') +
+      '<p class="muted sm">' + esc(LL('يدخل الموظف من الشاشة الرئيسية بكوده ويختار «التحدي المقارن».',
+        'העובד נכנס מהמסך הראשי עם הקוד שלו ובוחר «האתגר המשווה».')) + '</p></div>';
     return out;
+  }
+
+  /* ---- 2. ACTUAL PERFORMANCE: history, consistency, data classification ---- */
+  function perfBlock(e) {
+    var cc = Engine.classCheck(e), ps = cc.perf;
+    var bars = ps.history.length ? '<div class="hist">' + ps.history.map(function (h) {
+      var pct = Math.max(6, Math.min(160, h.pct));
+      var col = h.pct >= 100 ? '#10b981' : h.pct >= 85 ? '#f59e0b' : '#ef4444';
+      return '<div class="hist-col" title="' + h.m + ' · ' + h.pct + '%">' +
+        '<i style="height:' + (pct / 160 * 100) + '%;background:' + col + '"></i>' +
+        '<small>' + h.m.slice(5) + '</small></div>';
+    }).join('') + '<div class="hist-line" style="bottom:' + (100 / 160 * 100) + '%"></div></div>' : '';
+    var rank = { strong: 3, medium: 2, low: 1 };
+    return '<div class="card"><h3>📈 ' + esc(T('perf_history')) + ' <small class="muted">(' + ps.n + ' ' +
+        esc(LL('شهراً', 'חודשים')) + ')</small></h3>' + bars +
+      '<div class="kpis sm">' +
+        kpi('📊', (ps.avg == null ? '—' : ps.avg + '%'), LL('متوسط تحقيق الهدف', 'ממוצע עמידה ביעד'), '#3b82f6') +
+        kpi('✔', ps.above == null ? '—' : ps.above + '/' + ps.n, LL('أشهر فوق الهدف', 'חודשים מעל היעד'), '#10b981') +
+        kpi('📐', ps.consistency == null ? '—' : ps.consistency, T('perf_consist'), '#8b5cf6') +
+        kpi('📈', ps.trend == null ? '—' : (ps.trend > 0 ? '+' : '') + ps.trend, LL('اتجاه آخر 6 أشهر', 'מגמה 6 חודשים'), '#22d3ee') +
+        kpi('🎚', ps.sd == null ? '—' : '±' + ps.sd, LL('تشتّت', 'פיזור'), '#f59e0b') +
+      '</div>' +
+      '<div class="split"><div><small class="muted">' + esc(T('manager_says')) + '</small><br>' +
+        '<span class="pill" style="--c:' + gcolor(e.group) + '">' + esc(gname(e.group)) + '</span></div>' +
+        '<div><small class="muted">' + esc(T('data_class')) + '</small><br>' +
+        '<span class="pill" style="--c:' + gcolor(cc.data) + '">' + esc(gname(cc.data)) + '</span> ' +
+        '<small class="muted">' + cc.score + '/100</small></div></div>' +
+      (cc.conflict ? '<div class="alert warn-box">⚠ ' + esc(T('review_class')) + ' — ' +
+        esc(cc.direction === 'manager_higher'
+          ? LL('تصنيف المدير أعلى مما تدعمه البيانات', 'סיווג המנהל גבוה ממה שהנתונים מראים')
+          : LL('البيانات تشير إلى أداء أفضل من تصنيف المدير', 'הנתונים מצביעים על ביצועים טובים מהסיווג')) +
+        '. ' + esc(LL('القرار يبقى للمدير.', 'ההחלטה נשארת של המנהל.')) + '</div>' : '') +
+      '<p class="muted sm">' + esc(LL('الأداء الفعلي والـ DNA رقمان مختلفان — لا يُدمجان في مؤشر واحد.',
+        'ביצועים בפועל ו-DNA הם שני מספרים שונים — הם לא מאוחדים למדד אחד.')) + '</p></div>';
   }
 
   function bindEmp(m) {
@@ -349,6 +394,8 @@
     var dn = function (k) { return lang === 'he' ? D[k].he : D[k].ar; };
     var strong = rep.groups.strong.dims;
     var rec = rep.band === 'high' ? T('rec_proceed') : rep.band === 'mid' ? T('rec_review') : T('rec_low');
+    var conf = Engine.matchConfidence(s);
+    var com = Engine.commonalities(rep);
 
     out += head(c.name, c.phone + ' · ' + c.email + ' · ' + c.createdAt,
       '<button class="btn" onclick="window.print()">' + esc(T('print')) + '</button>');
@@ -366,9 +413,21 @@
           UI.tone(sc.consistency || 0) + '">' + (sc.consistency == null ? '—' : sc.consistency + '%') + '</b></span>' +
           (c.focus ? '<span class="chip">🧠 ' + esc(T('focus_score')) + ': <b style="color:' + UI.tone(c.focus.focus) + '">' +
             c.focus.focus + '</b></span>' : '') +
+          '<span class="chip">' + esc(T('confidence')) + ': <b style="color:' +
+            (conf.level === 'high' ? '#10b981' : conf.level === 'medium' ? '#f59e0b' : '#ef4444') + '">' +
+            esc(T('conf_' + conf.level)) + '</b></span>' +
           '<span class="chip">' + esc(T('run_25')) + '</span></div>' +
-        '<div class="rec-box ' + rep.band + '">' + esc(T('recommendation')) + ': <b>' + esc(rec) + '</b></div>' +
+        '<div class="rec-box ' + rep.band + '">' + esc(T('recommendation')) + ': <b>' + esc(rec) + '</b>' +
+          '<div class="why">WHY: ' + esc(whyText(rep, com, c, conf)) + '</div></div>' +
       '</div></div>';
+
+    /* the four numbers stay separate — never blended into one score */
+    out += '<div class="score-row">' +
+      scoreTile('🎯', esc(T('run_25')), sc.match, '#8b5cf6') +
+      scoreTile('🧠', esc(T('focus_title')), c.focus ? c.focus.focus : null, '#22d3ee') +
+      scoreTile(NC.DIMS.commit.icon, esc(lang === 'he' ? NC.DIMS.commit.he : NC.DIMS.commit.ar), sc.dims.commit, '#ec4899') +
+      scoreTile('✔', esc(T('consistency_idx')), sc.consistency, '#10b981') +
+      '</div>';
 
     /* six dimensions + radar */
     out += '<div class="grid2">' +
@@ -387,6 +446,23 @@
         UI.radar([{ name: c.name, color: '#8b5cf6', traits: sc.dims },
                   { name: T('group_strong'), color: '#10b981', traits: strong }],
                  { size: 340, keys: NC.DIM_KEYS, dict: D }) + '</div>' +
+      '</div>';
+
+    /* where he matches the strong team and where he differs */
+    out += '<div class="grid2">' +
+      '<div class="card"><h3>🔥 ' + esc(T('common_strong')) + '</h3>' +
+        com.common.map(function (r) {
+          return '<div class="sim-row">' + NC.DIMS[r.key].icon + ' <b>' + esc(dn(r.key)) + '</b>' +
+            '<span class="muted sm">' + r.cand + ' / ' + r.strong + '</span>' +
+            '<span class="sim-v">' + r.match + '%</span></div>';
+        }).join('') +
+        '<p class="muted sm">' + esc(LL('نسبة التشابه في كل بعد مع متوسط الأقوياء.', 'אחוז הדמיון בכל מדד מול ממוצע החזקים.')) + '</p></div>' +
+      '<div class="card"><h3>⚠ ' + esc(T('differences')) + '</h3>' +
+        (com.differences.length ? com.differences.map(function (r) {
+          return '<div class="diff-row">' + NC.DIMS[r.key].icon + ' <b>' + esc(dn(r.key)) + '</b>' +
+            '<span class="muted sm">' + r.cand + ' ' + esc(LL('مقابل', 'מול')) + ' ' + r.strong + '</span>' +
+            '<span class="diff-gap">' + r.delta + '</span></div>';
+        }).join('') : '<p class="muted">' + esc(LL('لا فروقات جوهرية عن الأقوياء.', 'אין פערים מהותיים מול החזקים.')) + '</p>') + '</div>' +
       '</div>';
 
     /* flags */
@@ -416,6 +492,25 @@
       }).join('') + '</tbody></table>' : '') +
       '</div></div>';
     return out;
+  }
+
+  function scoreTile(icon, label, val, color) {
+    return '<div class="score-tile" style="--c:' + color + '"><small>' + icon + ' ' + label + '</small>' +
+      '<b>' + (val == null ? '—' : val + (label === 'FOCUS' ? '' : '%')) + '</b></div>';
+  }
+
+  function whyText(rep, com, c, conf) {
+    var lang = UI.getLang();
+    var top = com.common.slice(0, 2).map(function (r) { return (lang === 'he' ? NC.DIMS[r.key].he : NC.DIMS[r.key].ar) + ' ' + r.match + '%'; });
+    var gap = com.differences.slice(0, 2).map(function (r) { return (lang === 'he' ? NC.DIMS[r.key].he : NC.DIMS[r.key].ar) + ' ' + r.delta; });
+    var parts = [];
+    if (rep.sims.strong != null) parts.push(LL('تشابه مع الأقوياء ', 'דמיון לחזקים ') + rep.sims.strong + '%');
+    if (top.length) parts.push(LL('الأقرب: ', 'הקרוב ביותר: ') + top.join(', '));
+    if (gap.length) parts.push(LL('فجوة: ', 'פער: ') + gap.join(', '));
+    if (rep.score.consistency != null) parts.push(LL('اتساق ', 'עקביות ') + rep.score.consistency + '%');
+    parts.push(LL('ثقة النموذج ', 'ביטחון המודל ') + T('conf_' + conf.level));
+    if (c.focus) parts.push(LL('التركيز ', 'פוקוס ') + c.focus.focus + ' (' + LL('بوزن صفر', 'במשקל אפס') + ')');
+    return parts.join(' · ');
   }
 
   /* 🟢 / 🟡 / 🔴 cards — benchmark wording, never a personal verdict */
@@ -531,6 +626,7 @@
           { name: T('group_medium') + ' (' + gs.medium.n + ')', color: '#3b82f6', traits: gs.medium.traits },
           { name: T('group_low') + ' (' + gs.low.n + ')', color: '#ef4444', traits: gs.low.traits }
         ], { size: 360 }) + '</div></div>' +
+      commonDnaBlock() + diffBlock() +
       '<div class="card"><h3>GROUP AVERAGES</h3><table class="tbl"><thead><tr><th></th>' +
       TK.map(function (t) { return '<th>' + Q.TRAITS[t].icon + ' ' + esc(lname(t)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       ['strong', 'medium', 'low'].map(function (g) {
@@ -540,6 +636,42 @@
             return '<td style="color:' + (v == null ? '#888' : UI.tone(v)) + '"><b>' + (v == null ? '—' : v) + '</b></td>';
           }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>';
+  }
+
+  function commonDnaBlock() {
+    var cd = Engine.commonDNA(st().employees);
+    return '<div class="card"><h3>🧬 ' + esc(T('common_dna')) + ' <small class="muted">(n=' + cd.n + ')</small></h3>' +
+      UI.bars(cd.rows.map(function (r) {
+        return { label: lname(r.key), icon: Q.TRAITS[r.key].icon, value: r.strong, color: Q.TRAITS[r.key].color };
+      })) +
+      '<p class="muted sm">' + esc(LL('هذه متوسطات الموظفين الأقوياء فقط — وليست بالضرورة ما يفرّقهم عن غيرهم.',
+        'אלו הממוצעים של העובדים החזקים בלבד — לא בהכרח מה שמבדיל אותם מהאחרים.')) + '</p></div>';
+  }
+
+  function diffBlock() {
+    var d = Engine.differentiators(st().employees);
+    var rate = { very_high: ['🔥 ' + LL('فارق كبير جداً', 'פער גבוה מאוד'), '#10b981'],
+                 high:      ['🔥 ' + LL('فارق كبير', 'פער גבוה'), '#22d3ee'],
+                 medium:    ['🟡 ' + LL('فارق متوسط', 'פער בינוני'), '#f59e0b'],
+                 low:       ['⚪ ' + LL('لا يفرّق', 'לא מבדיל'), '#8ea0c4'],
+                 unknown:   ['—', '#8ea0c4'] };
+    return '<div class="card"><h3>⚖️ ' + esc(T('differentiators')) + '</h3>' +
+      '<table class="tbl"><thead><tr><th>' + esc(T('name')) + '</th><th>' + esc(T('group_strong')) + '</th>' +
+      '<th>' + esc(T('group_medium')) + '</th><th>' + esc(T('group_low')) + '</th><th>Δ</th><th></th></tr></thead><tbody>' +
+      d.rows.map(function (r) {
+        var m = rate[r.rating];
+        return '<tr><td>' + Q.TRAITS[r.key].icon + ' ' + esc(lname(r.key)) + '</td>' +
+          '<td><b>' + (r.strong == null ? '—' : r.strong) + '</b></td>' +
+          '<td>' + (r.medium == null ? '—' : r.medium) + '</td>' +
+          '<td>' + (r.low == null ? '—' : r.low) + '</td>' +
+          '<td><b style="color:' + m[1] + '">' + (r.delta == null ? '—' : (r.delta > 0 ? '+' : '') + r.delta) + '</b></td>' +
+          '<td><span class="pill" style="--c:' + m[1] + '">' + esc(m[0]) + '</span></td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<div class="rec-box high">KEY SUCCESS DIFFERENTIATORS: <b>' +
+        (d.keys.length ? d.keys.map(function (r) { return Q.TRAITS[r.key].icon + ' ' + esc(lname(r.key)); }).join(' · ')
+                       : esc(LL('لا يوجد فارق واضح بعد', 'אין עדיין פער מובהק'))) + '</b></div>' +
+      '<p class="muted sm">' + esc(LL('الصفات التي يتشابه فيها الجميع لا تحصل على وزن كبير في نموذج المرشّح.',
+        'תכונות שכולם דומים בהן לא מקבלות משקל גבוה במודל המועמד.')) + '</p></div>';
   }
 
   /* ================= PATTERNS ================= */
@@ -572,11 +704,42 @@
           return '<tr><td>' + r.qid + ' <small class="muted">' + esc(lname(r.trait)) + '</small></td><td>' + (r.strong == null ? '—' : r.strong) + '</td><td>' + (r.low == null ? '—' : r.low) + '</td>' +
             '<td><b style="color:' + (r.sep >= 18 ? '#10b981' : r.sep >= 8 ? '#f59e0b' : '#ef4444') + '">' + (r.sep == null ? '—' : r.sep) + '</b></td></tr>';
         }).join('') + '</tbody></table></div></div>' +
+      qualityBlock() +
       '<div class="card"><h3>' + esc(T('weak_questions')) + '</h3><div class="chips">' +
         (qp.filter(function (r) { return r.verdict === 'weak'; }).map(function (r) {
           return '<span class="chip bad">' + r.qid + ' · ' + esc(lname(r.trait)) + ' · Δ' + r.sep + '</span>';
         }).join('') || '<span class="muted">—</span>') +
       '</div></div></div>';
+  }
+
+  function qualityBlock() {
+    var qq = Engine.ncQuestionQuality(st().employees);
+    var rate = { strong: ['🔥', '#10b981'], medium: ['🟡', '#f59e0b'], weak: ['🔴', '#ef4444'], nodata: ['⚪', '#8ea0c4'] };
+    return '<div class="card"><h3>❓ ' + esc(T('q_quality')) + ' <small class="muted">— ' +
+      esc(LL('حسب إجابات ' + qq.staff + ' موظفاً على نفس المقياس', 'לפי תשובות ' + qq.staff + ' עובדים על אותו מדד')) + '</small></h3>' +
+      '<div class="kpis sm">' +
+        kpi('🔥', qq.counts.strong, LL('أسئلة قوية', 'שאלות חזקות'), '#10b981') +
+        kpi('🟡', qq.counts.medium, LL('متوسطة', 'בינוניות'), '#f59e0b') +
+        kpi('🔴', qq.counts.weak, LL('ضعيفة', 'חלשות'), '#ef4444') +
+        kpi('⚪', qq.counts.nodata, LL('بلا بيانات', 'ללא נתונים'), '#8ea0c4') +
+      '</div>' +
+      '<table class="tbl sm"><thead><tr><th>Q</th><th>' + esc(T('group_strong')) + '</th><th>' + esc(T('group_medium')) +
+      '</th><th>' + esc(T('group_low')) + '</th><th>Δ</th><th>' + esc(LL('اختاروا الأفضل', 'בחרו את הטובה')) + '</th><th></th></tr></thead><tbody>' +
+      qq.rows.map(function (r) {
+        var m = rate[r.rating];
+        return '<tr><td><b>' + r.qid + '</b> <small class="muted">L' + r.lvl + '</small>' +
+          (r.staffOnly ? ' <span class="tag aud">' + esc(LL('للمرشحين فقط', 'למועמדים בלבד')) + '</span>' : '') + '</td>' +
+          '<td>' + (r.strong == null ? '—' : r.strong) + '</td>' +
+          '<td>' + (r.medium == null ? '—' : r.medium) + '</td>' +
+          '<td>' + (r.low == null ? '—' : r.low) + '</td>' +
+          '<td><b style="color:' + m[1] + '">' + (r.sep == null ? '—' : (r.sep > 0 ? '+' : '') + r.sep) + '</b></td>' +
+          '<td class="muted">' + (r.topShare && r.topShare.strong != null
+            ? r.topShare.strong + '% / ' + (r.topShare.medium == null ? '—' : r.topShare.medium + '%') + ' / ' +
+              (r.topShare.low == null ? '—' : r.topShare.low + '%') : '—') + '</td>' +
+          '<td>' + m[0] + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<p class="muted sm">' + esc(LL('العمود قبل الأخير: نسبة من اختار الإجابة الأعلى قيمة في كل مجموعة (أقوياء / متوسطون / ضعفاء). السؤال الذي يجيب عليه الجميع بنفس الشكل لا يعطي معلومة.',
+        'העמודה לפני האחרונה: אחוז מי שבחר את התשובה בעלת הערך הגבוה בכל קבוצה. שאלה שכולם עונים עליה אותו דבר לא מוסיפה מידע.')) + '</p></div>';
   }
 
   function bindPatterns(m) {
@@ -649,6 +812,165 @@
       }).join('');
   }
 
+  /* ================= FOCUS ANALYTICS ================= */
+  function focusTab() {
+    var s = st(), fv = Engine.focusVerdict(s), fs = fv.stats, SUB = root.SDNA.Focus.SUB;
+    var val = s.settings.spotValidated;
+    var verdictBox = {
+      insufficient: ['warn-box', LL('لا توجد بيانات كافية بعد. شغّل التحدي لدى الموظفين الأقوياء والضعفاء قبل استخدامه في أي قرار.',
+                                    'אין עדיין מספיק נתונים. הרץ את האתגר אצל עובדים חזקים וחלשים לפני שימוש בהחלטה.')],
+      no_signal:    ['warn-box', LL('النتائج متشابهة بين المجموعات — التحدي يبقى جزءاً من التجربة فقط، وبدون تأثير على القرار.',
+                                    'התוצאות דומות בין הקבוצות — האתגר נשאר חלק מהחוויה בלבד, בלי השפעה על ההחלטה.')],
+      signal:       ['ok-box', LL('يوجد فارق ثابت بين الأقوياء والضعفاء — يستحق التحقيق، ومع ذلك وزنه في القرار ما زال صفراً حتى تقرر تغييره.',
+                                  'קיים פער עקבי בין חזקים לחלשים — שווה לחקור, ובכל זאת המשקל בהחלטה עדיין אפס עד שתחליט אחרת.')]
+    }[fv.verdict];
+
+    return head(T('nav_focus'), T('focus_note')) +
+      '<div class="kpis">' +
+        kpi('🧠', fs.all.focus == null ? '—' : fs.all.focus, LL('متوسط الفريق', 'ממוצע צוות'), '#8b5cf6') +
+        kpi('👥', fs.all.n, LL('لعبوا التحدي', 'שיחקו'), '#3b82f6') +
+        kpi('Δ', fv.gap == null ? '—' : (fv.gap > 0 ? '+' : '') + fv.gap, LL('فارق أقوياء/ضعفاء', 'פער חזקים/חלשים'), '#22d3ee') +
+        kpi('⚖', fv.weight + '%', T('focus_weight'), '#f59e0b') +
+      '</div>' +
+      '<div class="alert ' + verdictBox[0] + '">' + esc(verdictBox[1]) + '</div>' +
+      '<div class="grid2">' +
+        '<div class="card"><h3>' + esc(LL('حسب المجموعة', 'לפי קבוצה')) + '</h3>' +
+          '<table class="tbl"><thead><tr><th></th><th>FOCUS</th>' +
+          ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
+            return '<th>' + esc(UI.getLang() === 'he' ? SUB[k].he : SUB[k].ar) + '</th>';
+          }).join('') + '<th>n</th></tr></thead><tbody>' +
+          ['strong', 'medium', 'low'].map(function (g) {
+            return '<tr><td><span class="pill" style="--c:' + gcolor(g) + '">' + esc(gname(g)) + '</span></td>' +
+              '<td><b>' + (fs[g].focus == null ? '—' : fs[g].focus) + '</b></td>' +
+              ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
+                return '<td>' + (fs[g].sub[k] == null ? '—' : fs[g].sub[k]) + '</td>';
+              }).join('') + '<td class="muted">' + fs[g].n + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+        '<div class="card"><h3>👁 ' + esc(LL('معايرة لعبة الاختلافات', 'כיול משחק ההבדלים')) + '</h3>' +
+          '<div class="alert ' + (val && val.ok ? 'ok-box' : 'warn-box') + '">' +
+            (val ? (val.ok ? '✅ ' + val.found + '/' + val.total + ' ' + esc(T('validated'))
+                           : '⚠ ' + val.found + '/' + val.total + ' ' + esc(T('not_validated'))) +
+                   ' <small class="muted">· ' + esc(val.at) + '</small>'
+                 : '⚠ ' + esc(T('not_validated'))) + '</div>' +
+          '<div class="btn-row"><button class="btn btn-primary" id="calSpot">🎯 ' + esc(T('calibrate_spot')) + '</button>' +
+          '<button class="btn" id="hitBox">' + (s.settings.spotDebug ? '☑' : '☐') + ' ' + esc(T('show_hitboxes')) + '</button></div>' +
+          '<p class="muted sm">' + esc(LL('كل اختلاف مخزّن بإحداثيات نسبية 0–1 ومنطقة ضغط لا تقل عن 30 بكسل، لذلك تعمل اللعبة بنفس الدقة على الجوال والحاسوب. وضع إظهار مناطق الضغط لا يظهر للمرشّح إطلاقاً.',
+            'כל הבדל נשמר בקואורדינטות יחסיות 0–1 ואזור לחיצה של 30px לפחות, כך שהמשחק מדויק במובייל ובדסקטופ. מצב אזורי הלחיצה לא מוצג למועמד.')) + '</p></div>' +
+      '</div>' +
+      '<div class="card"><h3>' + esc(LL('الموظفون', 'עובדים')) + '</h3><table class="tbl"><thead><tr>' +
+      '<th>' + esc(T('name')) + '</th><th>' + esc(T('perf')) + '</th><th>FOCUS</th><th>👁</th><th>❌</th><th>⚡</th><th></th></tr></thead><tbody>' +
+      s.employees.map(function (e) {
+        var f = e.focus;
+        return '<tr><td>' + esc(e.name) + '</td>' +
+          '<td><span class="pill" style="--c:' + gcolor(e.group) + '">' + esc(gname(e.group)) + '</span></td>' +
+          '<td>' + (f ? '<b style="color:' + UI.tone(f.focus) + '">' + f.focus + '</b>' : '<span class="muted">—</span>') + '</td>' +
+          '<td>' + (f ? f.raw.found + '/' + f.raw.total : '—') + '</td>' +
+          '<td>' + (f ? f.raw.wrong : '—') + '</td>' +
+          '<td>' + (f ? f.raw.scanCorrect + '/' + f.raw.scanTotal : '—') + '</td>' +
+          '<td><button class="btn btn-xs" data-focus-emp="' + e.id + '">▶</button></td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  function bindFocus(m) {
+    var c = document.getElementById('calSpot');
+    if (c) c.onclick = function () {
+      root.SDNA.Game.calibrateSpot(function () { root.SDNA.App.go('manager'); });
+    };
+    var h = document.getElementById('hitBox');
+    if (h) h.onclick = function () {
+      var s = st(); s.settings.spotDebug = !s.settings.spotDebug; Store.save(); body();
+    };
+    UI.$$('[data-focus-emp]', m).forEach(function (btn) {
+      btn.onclick = function () {
+        var e = st().employees.filter(function (x) { return x.id === btn.dataset.focusEmp; })[0];
+        root.SDNA.Game.focusOnly({ id: e.id, type: 'employee', name: e.name }, 'employee', function () {
+          root.SDNA.App.go('manager');
+        });
+      };
+    });
+  }
+
+  /* ================= PREDICTION & POST-HIRE ================= */
+  function predictTab() {
+    var s = st(), pv = Engine.predictionValidation(s), conf = Engine.matchConfidence(s);
+    var hired = s.candidates.filter(function (c) { return c.decision === 'hired'; });
+    var vmap = { good: ['✅', T('verdict_good'), '#10b981'], missed: ['❌', T('verdict_missed'), '#ef4444'],
+                 pending: ['⏳', T('verdict_pending'), '#8ea0c4'] };
+    return head(T('nav_predict'), LL('هل تنبؤات المنظومة تتحقق فعلياً؟', 'האם התחזיות של המערכת מתממשות?')) +
+      '<div class="kpis">' +
+        kpi('🎯', pv.accuracy == null ? '—' : pv.accuracy + '%', T('pred_acc'), '#10b981') +
+        kpi('👤', pv.judged, LL('تنبؤات قابلة للفحص', 'תחזיות שנבדקו'), '#3b82f6') +
+        kpi('🔒', T('conf_' + conf.level), T('confidence'), '#8b5cf6') +
+      '</div>' +
+      '<div class="card"><h3>' + esc(T('confidence')) + '</h3><div class="chips">' +
+        conf.reasons.map(function (r) {
+          var lbl = { strong_n: LL('موظفون أقوياء بالبيانات', 'חזקים עם נתונים'),
+                      low_n: LL('موظفون ضعفاء بالبيانات', 'חלשים עם נתונים'),
+                      history_n: LL('سجل أداء 6 أشهر+', 'היסטוריה 6 חודשים+'),
+                      separation: LL('صفات تفرّق فعلياً', 'תכונות מבדילות') }[r.k];
+          return '<span class="chip' + (r.ok ? '' : ' bad') + '">' + (r.ok ? '✅' : '⚠') + ' ' + esc(lbl) + ': <b>' + r.v + '</b></span>';
+        }).join('') + '</div>' +
+        '<p class="muted sm">' + esc(LL('نسبة التطابق تُعرض دائماً مع مستوى ثقة — 91% مع 3 موظفين أقوياء ليست مثل 91% مع 30.',
+          'ההתאמה מוצגת תמיד עם רמת ביטחון — 91% עם 3 עובדים חזקים אינו 91% עם 30.')) + '</p></div>' +
+      '<div class="card"><h3>' + esc(LL('التحقق من التنبؤ', 'אימות החיזוי')) + '</h3>' +
+        (pv.rows.length ? '<table class="tbl"><thead><tr><th>' + esc(T('name')) + '</th><th>MATCH</th><th>' +
+          esc(LL('اليوم', 'יום')) + '</th><th>' + esc(T('target_pct')) + '</th><th>' + esc(LL('التصنيف الفعلي', 'סיווג בפועל')) +
+          '</th><th>FOCUS</th><th></th></tr></thead><tbody>' +
+          pv.rows.map(function (r) {
+            var v = vmap[r.verdict];
+            return '<tr><td>' + esc(r.name) + '</td>' +
+              '<td>' + (r.match == null ? '—' : bandNum(r.match, r.band)) + '</td>' +
+              '<td>' + (r.day || '—') + '</td>' +
+              '<td>' + (r.actual == null ? '—' : r.actual + '%') + '</td>' +
+              '<td>' + (r.actualClass ? '<span class="pill" style="--c:' + gcolor(r.actualClass) + '">' + esc(gname(r.actualClass)) + '</span>' : '—') + '</td>' +
+              '<td>' + (r.focus == null ? '—' : r.focus) + '</td>' +
+              '<td><span class="pill" style="--c:' + v[2] + '">' + v[0] + ' ' + esc(v[1]) + '</span></td></tr>';
+          }).join('') + '</tbody></table>'
+          : '<p class="muted">' + esc(LL('لا يوجد موظفون تم توظيفهم عبر المنظومة بعد.', 'עדיין אין מועמדים שנקלטו דרך המערכת.')) + '</p>') +
+      '</div>' +
+      '<div class="card"><h3>' + esc(T('post_hire')) + ' — 30 / 90 / 180</h3>' +
+        (hired.length ? hired.map(function (c) {
+          return '<div class="ph-row"><div class="ph-head"><b>' + esc(c.name) + '</b>' +
+            '<span class="muted sm">' + (c.hiredAt || c.createdAt) + '</span></div>' +
+            '<div class="form inline">' +
+            '<label class="fld"><span>' + esc(LL('اليوم', 'יום')) + '</span><select data-ph="day" data-c="' + c.id + '">' +
+              [30, 90, 180].map(function (d) { return '<option>' + d + '</option>'; }).join('') + '</select></label>' +
+            '<label class="fld"><span>' + esc(T('target_pct')) + '</span><input type="number" data-ph="targetPct" data-c="' + c.id + '" value="100"></label>' +
+            '<label class="fld"><span>' + esc(T('attendance')) + '</span><input type="number" data-ph="attendance" data-c="' + c.id + '" value="95"></label>' +
+            '<label class="fld"><span>' + esc(LL('انضباط', 'משמעת')) + '</span><input type="number" data-ph="discipline" data-c="' + c.id + '" value="85"></label>' +
+            '<label class="fld"><span>' + esc(LL('سرعة تعلّم', 'קצב למידה')) + '</span><input type="number" data-ph="learning" data-c="' + c.id + '" value="85"></label>' +
+            '<label class="fld"><span>' + esc(T('mgr_score')) + '</span><input type="number" data-ph="managerRating" data-c="' + c.id + '" value="8"></label>' +
+            '<button class="btn" data-ph-save="' + c.id + '">+ ' + esc(T('add_followup')) + '</button></div>' +
+            ((c.reviews || []).length ? '<table class="tbl sm"><tbody>' + c.reviews.map(function (r) {
+              return '<tr><td>' + r.day + 'd</td>' +
+                '<td>' + (r.targetPct != null ? r.targetPct + '%' : '—') + '</td>' +
+                '<td>' + (r.attendance != null ? '🕘 ' + r.attendance : '') + '</td>' +
+                '<td>' + (r.discipline != null ? '⏱ ' + r.discipline : '') + '</td>' +
+                '<td>' + (r.learning != null ? '🧠 ' + r.learning : '') + '</td>' +
+                '<td>' + (r.managerRating != null ? '⭐ ' + r.managerRating : '') + '</td></tr>';
+            }).join('') + '</tbody></table>' : '') + '</div>';
+        }).join('') : '<p class="muted">' + esc(LL('لا يوجد بعد.', 'אין עדיין.')) + '</p>') +
+      '</div>';
+  }
+
+  function bindPredict(m) {
+    UI.$$('[data-ph-save]', m).forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.dataset.phSave;
+        var c = st().candidates.filter(function (x) { return x.id === id; })[0];
+        if (!c) return;
+        var rec = {};
+        UI.$$('[data-c="' + id + '"]', m).forEach(function (inp) {
+          rec[inp.dataset.ph] = Number(inp.value);
+        });
+        c.reviews = c.reviews || [];
+        c.reviews = c.reviews.filter(function (r) { return r.day !== rec.day; }).concat([rec])
+          .sort(function (a, b) { return a.day - b.day; });
+        Store.save(); UI.toast('✔'); body();
+      };
+    });
+  }
+
   /* ================= COMPARE ================= */
   function compare() {
     var s = st();
@@ -700,6 +1022,10 @@
         '<label class="fld"><span>🧠 ' + esc(T('focus_title')) + '</span><select id="fxOn">' +
           '<option value="1"' + (s.settings.focusEnabled ? ' selected' : '') + '>' + esc(UI.getLang() === 'he' ? 'פעיל' : 'مفعّل') + '</option>' +
           '<option value="0"' + (s.settings.focusEnabled ? '' : ' selected') + '>' + esc(UI.getLang() === 'he' ? 'כבוי' : 'معطّل') + '</option></select></label>' +
+        '<label class="fld"><span>⚖ ' + esc(T('focus_weight')) + '</span><select id="fxW">' +
+          [0, 5, 10, 15].map(function (v) {
+            return '<option value="' + v + '"' + ((s.settings.focusWeight || 0) === v ? ' selected' : '') + '>' + v + '%</option>';
+          }).join('') + '</select></label>' +
         '<p class="muted sm">' + esc(T('open_anyway')) + ' · ' + esc(T('focus_note')) + '</p>' +
         '<button class="btn btn-primary" id="saveTh">' + esc(T('save')) + '</button></div>' +
       '<div class="card"><h3>PIN</h3>' +
@@ -734,6 +1060,7 @@
       s.settings.thresholds.mid = Number(document.getElementById('thMid').value);
       s.settings.thresholds.stage1 = Number(document.getElementById('thStage1').value);
       s.settings.focusEnabled = document.getElementById('fxOn').value === '1';
+      s.settings.focusWeight = Number(document.getElementById('fxW').value);
       Store.save(); UI.toast('✔'); body();
     };
     document.getElementById('savePin').onclick = function () {

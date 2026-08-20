@@ -94,10 +94,19 @@
         '<div><small>' + esc(T('target_pct')) + '</small><b>' + e.targetPct + '%</b></div>' +
       '</div>' +
       '<h3>' + esc(T('ready_challenge')) + '</h3>' +
-      '<p class="muted">' + esc(T('emp_note')) + '</p>' +
-      '<button class="btn btn-primary btn-xl pulse" id="startGame">' + esc(T('start_challenge')) + '</button></div>';
+      '<div class="pick-mode">' +
+        '<button class="mode-card" id="startQuick" style="--c:#22d3ee">' +
+          '<b>⚡ ' + esc(T('mode_quick')) + '</b><small>' + esc(T('mode_quick_note')) + '</small>' +
+          (e.nc22 ? '<i class="done-tag">✓</i>' : '') + '</button>' +
+        '<button class="mode-card" id="startFull" style="--c:#8b5cf6">' +
+          '<b>🏙 ' + esc(T('mode_full')) + '</b><small>' + esc(T('mode_full_note')) + '</small>' +
+          (e.assessment ? '<i class="done-tag">✓</i>' : '') + '</button>' +
+      '</div></div>';
     bindBack();
-    document.getElementById('startGame').onclick = function () {
+    document.getElementById('startQuick').onclick = function () {
+      Game.start('employee22', { type: 'employee', id: e.id, name: e.name });
+    };
+    document.getElementById('startFull').onclick = function () {
       Game.start('employee', { type: 'employee', id: e.id, name: e.name });
     };
   }

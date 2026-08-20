@@ -114,19 +114,19 @@
       { t:'أطلب التأخير قليلاً',                       p:{ discipline:1, commit:1 } },
       { t:'أفضّل أخذ يوم راحة حتى أعود بطاقة أفضل',    p:{ discipline:0, commit:0 }, f:'attendance' }
     ]},
-    { id:'NC13', lvl:3, q:'هل يوجد حالياً التزام ثابت قد يؤثر على قدرتك على العمل بدوام كامل؟', a:[
+    { id:'NC13', lvl:3, aud:'cand', q:'هل يوجد حالياً التزام ثابت قد يؤثر على قدرتك على العمل بدوام كامل؟', a:[
       { t:'لا',                p:{ commit:5 } },
       { t:'دراسة',             p:{ commit:2 }, f:'study',      fu:'FU_STUDY' },
       { t:'عمل آخر',           p:{ commit:1 }, f:'second_job', fu:'FU_JOB' },
       { t:'التزام ثابت آخر',   p:{ commit:2 }, f:'commitment_other', fu:'FU_OTHER' }
     ]},
-    { id:'NC14', lvl:3, q:'إذا بدأت دراسة أو دورة تتعارض مع ساعتين من الدوام، ماذا ستفعل؟', a:[
+    { id:'NC14', lvl:3, aud:'cand', q:'إذا بدأت دراسة أو دورة تتعارض مع ساعتين من الدوام، ماذا ستفعل؟', a:[
       { t:'أبحث عن طريقة لتنظيم الدراسة خارج ساعات العمل', p:{ commit:5, discipline:3 } },
       { t:'أحاول تغيير موعد الدورة',                       p:{ commit:4, discipline:2 } },
       { t:'أطلب تغيير ساعات عملي',                         p:{ commit:2 }, f:'schedule' },
       { t:'أختار حسب أهمية الدراسة في ذلك الوقت',          p:{ commit:0 }, f:'schedule' }
     ]},
-    { id:'NC15', lvl:3, q:'بعد ثلاثة أشهر في العمل اكتشفت أن الوظيفة أصعب مما توقعت.', a:[
+    { id:'NC15', lvl:3, aud:'cand', q:'بعد ثلاثة أشهر في العمل اكتشفت أن الوظيفة أصعب مما توقعت.', a:[
       { t:'أحاول معرفة ما ينقصني وأعمل على تحسينه', p:{ commit:5, learn:5, account:4 } },
       { t:'أطلب تدريباً أو مساعدة إضافية',           p:{ commit:4, learn:4 } },
       { t:'أبدأ بالنظر إلى خيارات عمل أخرى',        p:{ commit:1 }, f:'retention' },
@@ -204,19 +204,19 @@
     ]},
 
     /* ---------- adaptive follow-ups (extra, not part of the 25) ---------- */
-    { id:'FU_STUDY', lvl:3, extra:true, q:'ذكرت أن لديك دراسة. ما هي ساعات الدراسة؟', a:[
+    { id:'FU_STUDY', lvl:3, extra:true, aud:'cand', q:'ذكرت أن لديك دراسة. ما هي ساعات الدراسة؟', a:[
       { t:'مساءً بالكامل بعد ساعات العمل', p:{ commit:4, discipline:3 } },
       { t:'عن بُعد ومرنة تماماً',           p:{ commit:4, discipline:2 } },
       { t:'يومان في الأسبوع صباحاً',        p:{ commit:1 }, f:'schedule' },
       { t:'تتغيّر حسب الفصل الدراسي',       p:{ commit:1 }, f:'schedule' }
     ]},
-    { id:'FU_JOB', lvl:3, extra:true, q:'ذكرت أن لديك عمل آخر. كم ساعة يأخذ منك أسبوعياً؟', a:[
+    { id:'FU_JOB', lvl:3, extra:true, aud:'cand', q:'ذكرت أن لديك عمل آخر. كم ساعة يأخذ منك أسبوعياً؟', a:[
       { t:'أقل من 5 ساعات وفي نهاية الأسبوع', p:{ commit:4 } },
       { t:'من 5 إلى 10 ساعات',                p:{ commit:2 } },
       { t:'أكثر من 10 ساعات',                 p:{ commit:0 }, f:'schedule' },
       { t:'يتغيّر من أسبوع لآخر',              p:{ commit:1 }, f:'schedule' }
     ]},
-    { id:'FU_OTHER', lvl:3, extra:true, q:'هل يمكن تعديل هذا الالتزام ليكون خارج ساعات العمل؟', a:[
+    { id:'FU_OTHER', lvl:3, extra:true, aud:'cand', q:'هل يمكن تعديل هذا الالتزام ليكون خارج ساعات العمل؟', a:[
       { t:'نعم، بشكل كامل',            p:{ commit:5 } },
       { t:'نعم، بشكل جزئي',            p:{ commit:3 } },
       { t:'صعب لكنني سأحاول',          p:{ commit:1 }, f:'schedule' },
@@ -227,14 +227,29 @@
   var byId = {};
   Q.forEach(function (q) { byId[q.id] = q; });
 
-  /* the fixed plan: 5 levels × 5 challenges */
-  function plan() {
+  /* the fixed plan: 5 levels × 5 challenges
+     aud 'cand' → the full 25
+     aud 'emp'  → the 22 questions that are legitimate for existing staff
+                  (no studies / other job / thinking about leaving)          */
+  function plan(aud) {
+    aud = aud || 'cand';
     return LEVELS.map(function (l) {
       return {
         lvl: l.n, key: l.key,
-        qs: Q.filter(function (q) { return q.lvl === l.n && !q.extra; }).map(function (q) { return q.id; })
+        qs: Q.filter(function (q) {
+          if (q.extra || q.lvl !== l.n) return false;
+          return aud === 'cand' || !q.aud || q.aud === 'all';
+        }).map(function (q) { return q.id; })
       };
-    });
+    }).filter(function (b) { return b.qs.length; });
+  }
+  function countFor(aud) {
+    return plan(aud).reduce(function (n, b) { return n + b.qs.length; }, 0);
+  }
+  /* questions an existing employee is allowed to answer */
+  function empSafe(id) {
+    var q = byId[id];
+    return !!q && (!q.aud || q.aud === 'all');
   }
 
   /* ---------- flags ---------- */
@@ -320,6 +335,7 @@
     DIMS: DIMS, DIM_KEYS: DIM_KEYS, LEVELS: LEVELS, CONSISTENCY_W: CONSISTENCY_W,
     all: Q, get: function (id) { return byId[id]; }, plan: plan,
     score: score, defaultWeights: defaultWeights, FLAG_META: FLAG_META,
+    countFor: countFor, empSafe: empSafe,
     count: Q.filter(function (q) { return !q.extra; }).length
   };
 })(window);
