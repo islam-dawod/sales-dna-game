@@ -4,7 +4,8 @@
 (function (root) {
   'use strict';
   var Store = root.SDNA.Store, UI = root.SDNA.UI, Art = root.SDNA.Art,
-      Game = root.SDNA.Game, Manager = root.SDNA.Manager;
+      Game = root.SDNA.Game, Manager = root.SDNA.Manager, API = root.SDNA.API;
+  function srv() { return API && API.isServer(); }
   var T = UI.T, esc = UI.esc;
   var app, route = 'splash';
 
@@ -80,15 +81,28 @@
       var field = document.getElementById('code');
       var v = String(field.value || '').trim().toUpperCase();
       if (!v) return UI.toast(T('not_found'), 'bad');
+      var reject = function (msg) {
+        tries++;
+        field.value = ''; field.classList.add('err');
+        setTimeout(function () { field.classList.remove('err'); }, 900);
+        if (tries >= 3) { field.disabled = true; setTimeout(function () { field.disabled = false; field.focus(); }, 1500); }
+        UI.toast(msg || T('not_found'), 'bad');
+      };
+      if (srv()) {
+        field.disabled = true;
+        API.loginEmployee(v).then(function (res) {
+          field.disabled = false;
+          Store.hydrateOne('employee', res.employee, res.settings);
+          go('empReady', res.employee);
+        })['catch'](function (err) {
+          field.disabled = false;
+          reject(err.message === 'too_many_attempts' ? T('too_many') : T('not_found'));
+        });
+        return;
+      }
       UI.hashPass(v, function (h) {
         var e = Store.findByCodeHash(h);
-        if (!e) {
-          tries++;
-          field.value = ''; field.classList.add('err');
-          setTimeout(function () { field.classList.remove('err'); }, 900);
-          if (tries >= 3) { field.disabled = true; setTimeout(function () { field.disabled = false; field.focus(); }, 1500); }
-          return UI.toast(T('not_found'), 'bad');
-        }
+        if (!e) return reject();
         go('empReady', e);
       });
     };
@@ -142,6 +156,19 @@
           m = document.getElementById('ce').value.trim();
       if (!n) { UI.$('#cn').classList.add('err'); return UI.toast(T('name_required'), 'bad'); }
       if ((s.requirePhone && !p) || (s.requireEmail && !m)) return UI.toast(T('fill_all'), 'bad');
+      if (srv()) {
+        var btn = document.getElementById('doReg');
+        btn.disabled = true;
+        API.registerCandidate({ name: n, phone: p, email: m }).then(function (res) {
+          btn.disabled = false;
+          Store.hydrateOne('candidate', res.candidate, res.settings);
+          go('candHello', res.candidate);
+        })['catch'](function (err) {
+          btn.disabled = false;
+          UI.toast(err.message === 'too_many_attempts' ? T('too_many') : T('fill_all'), 'bad');
+        });
+        return;
+      }
       var c = Store.addCandidate({ name: n, phone: p, email: m, stage: 1 });
       go('candHello', c);
     };
@@ -177,6 +204,22 @@
       var field = document.getElementById('pin');
       var val = field.value;
       if (!val) return UI.toast(T('wrong_pin'), 'bad');
+      if (srv()) {
+        field.disabled = true;
+        API.loginManager(val).then(function () {
+          return API.fetchState();
+        }).then(function (data) {
+          field.disabled = false; field.value = '';
+          Store.hydrate(data);
+          go('manager');
+        })['catch'](function (err) {
+          field.disabled = false; field.value = '';
+          field.classList.add('err');
+          setTimeout(function () { field.classList.remove('err'); }, 900);
+          UI.toast(err.message === 'too_many_attempts' ? T('too_many') : T('wrong_pin'), 'bad');
+        });
+        return;
+      }
       UI.hashPass(val, function (h) {
         var st = Store.get().settings;
         var ok = (h.sha && st.pinSha && h.sha === st.pinSha) ||
@@ -204,6 +247,21 @@
   /* ---------------- boot ---------------- */
   function boot() {
     app = document.getElementById('app');
+    if (API) {
+      API.probe().then(function (mode) {
+        if (mode === 'server') {
+          Store.setServerMode(true);
+          Store.loadEmpty();
+          document.body.classList.add('server-mode');
+        }
+        start();
+      });
+      return;
+    }
+    start();
+  }
+
+  function start() {
     var s = Store.load();
     Art.injectDefs();
     document.getElementById('world').innerHTML = Art.city();

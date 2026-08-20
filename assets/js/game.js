@@ -294,6 +294,15 @@
       Store.updateCandidate(S.subject.id, { nc: payload, stage: 2 });
     }
 
+    /* server mode: the result is stored centrally so the manager sees it
+       from any device. A failure is surfaced, never silently swallowed. */
+    if (Store.isServerMode() && root.SDNA.API) {
+      var model = S.subject.type === 'candidate' ? 'nc25' : (S.mode === 'employee22' ? 'nc22' : 'emp36');
+      root.SDNA.API.saveAssessment(model, payload)['catch'](function (err) {
+        UI.toast('⚠ ' + T('save_failed') + ' (' + err.message + ')', 'bad');
+      });
+    }
+
     if (!st.settings.focusEnabled) return finalScreen();
 
     /* 🏆 SALES LEVEL COMPLETE → 🔓 BONUS LEVEL */
@@ -314,6 +323,11 @@
       root.SDNA.Focus.run(S.subject, function (result) {
         if (S.subject.type === 'employee') Store.updateEmployee(S.subject.id, { focus: result });
         else Store.updateCandidate(S.subject.id, { focus: result, stage: 3 });
+        if (Store.isServerMode() && root.SDNA.API) {
+          root.SDNA.API.saveFocus(result)['catch'](function (err) {
+            UI.toast('⚠ ' + T('save_failed') + ' (' + err.message + ')', 'bad');
+          });
+        }
         finalScreen(result);
       });
     };
@@ -398,8 +412,18 @@
     root.SDNA.Focus.run(subject, function (result) {
       if (kind === 'employee') Store.updateEmployee(subject.id, { focus: result });
       else Store.updateCandidate(subject.id, { focus: result });
-      document.body.classList.remove('in-game');
-      if (doneCb) doneCb(result); else root.SDNA.App.go('manager');
+      var after = function () {
+        document.body.classList.remove('in-game');
+        if (doneCb) doneCb(result); else root.SDNA.App.go('manager');
+      };
+      if (Store.isServerMode() && root.SDNA.API) {
+        root.SDNA.API.managerFocus(kind, subject.id, result).then(after)['catch'](function (err) {
+          UI.toast('⚠ ' + T('save_failed') + ' (' + err.message + ')', 'bad');
+          after();
+        });
+        return;
+      }
+      after();
     });
   }
 

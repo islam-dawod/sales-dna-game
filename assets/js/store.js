@@ -83,8 +83,40 @@
   }
 
   var state = null;
+  var serverMode = false;      /* true once the backend answered the health probe */
+
+  function setServerMode(on) { serverMode = !!on; }
+  function isServerMode() { return serverMode; }
+
+  /* replace the in-memory state with what the server sent */
+  function hydrate(payload) {
+    state = state || defaults();
+    if (payload.settings) state.settings = Object.assign(defaults().settings, payload.settings);
+    if (payload.employees) state.employees = payload.employees;
+    if (payload.candidates) state.candidates = payload.candidates;
+    return state;
+  }
+
+  /* a single subject (employee or candidate) instead of the whole roster */
+  function hydrateOne(kind, record, settings) {
+    state = state || defaults();
+    if (settings) state.settings = Object.assign(defaults().settings, settings);
+    if (kind === 'employee') state.employees = [record];
+    else state.candidates = [record];
+    return record;
+  }
+
+  /* in server mode nothing is read from the browser: start from an empty
+     state and let the API fill it in */
+  function loadEmpty() {
+    state = defaults();
+    state.employees = [];
+    state.candidates = [];
+    return state;
+  }
 
   function load() {
+    if (serverMode) return state || loadEmpty();
     try {
       var raw = localStorage.getItem(KEY);
       state = raw ? JSON.parse(raw) : null;
@@ -100,7 +132,10 @@
     }
     return state;
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function save() {
+    if (serverMode) return;            /* the server is the source of truth */
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
   function get() { return state || load(); }
   function reset() { state = defaults(); seed(); save(); return state; }
   function wipe() { state = defaults(); save(); return state; }
@@ -263,6 +298,8 @@
 
   root.SDNA.Store = {
     load: load, save: save, get: get, reset: reset, wipe: wipe,
+    setServerMode: setServerMode, isServerMode: isServerMode,
+    hydrate: hydrate, hydrateOne: hydrateOne, loadEmpty: loadEmpty,
     buildPlan: buildPlan, shuffle: shuffle, uid: uid, rng: mulberry32,
     addEmployee: addEmployee, updateEmployee: updateEmployee, removeEmployee: removeEmployee,
     findByCodeHash: findByCodeHash, setEmployeeCode: setEmployeeCode, randomCode: randomCode,

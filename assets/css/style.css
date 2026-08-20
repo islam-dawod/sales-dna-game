@@ -583,6 +583,11 @@ body.mgr-mode .world{filter:blur(3px) saturate(.6);opacity:.5}
 .ph-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .ok-line{color:#6ee7b7;font-size:13.5px}
 
+.mode-tag{display:block;margin-top:6px;font-size:10px;letter-spacing:.5px;padding:2px 8px;border-radius:99px;
+  border:1px solid var(--line);width:fit-content}
+.mode-tag.on{color:#6ee7b7;border-color:rgba(16,185,129,.5);background:rgba(16,185,129,.12)}
+.mode-tag.off{color:#fbbf24;border-color:rgba(245,158,11,.45);background:rgba(245,158,11,.1)}
+
 /* ---------- print ---------- */
 @media print{
   .topbar,.mgr-nav,.foot,.btn,.bg-glow,.world,.world-veil{display:none!important}

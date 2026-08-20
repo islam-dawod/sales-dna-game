@@ -22,6 +22,22 @@
   ];
 
   function LL(ar, he) { return UI.getLang() === 'he' ? he : ar; }
+  var API = root.SDNA.API;
+  function srv() { return Store.isServerMode() && API; }
+
+  /* run a server call, then refresh the console from the server */
+  function push(promise, okMsg) {
+    if (!promise) return;
+    promise.then(function () { return API.fetchState(); })
+      .then(function (data) {
+        Store.hydrate(data);
+        if (okMsg) UI.toast(okMsg);
+        body();
+      })['catch'](function (err) {
+        UI.toast('⚠ ' + err.message, 'bad');
+        body();
+      });
+  }
   function st() { return Store.get(); }
   function empDNA(e) { return e.assessment ? Engine.dna(e.assessment.answers) : null; }
   function candDNA(c) { var a = Engine.candAnswers(c); return a.length ? Engine.dna(a) : null; }
@@ -42,7 +58,9 @@
     app.innerHTML =
       '<div class="mgr">' +
         '<aside class="mgr-nav">' +
-          '<div class="mgr-logo"><b>SALES<span>DNA</span></b><small>INTELLIGENCE</small></div>' +
+          '<div class="mgr-logo"><b>SALES<span>DNA</span></b><small>INTELLIGENCE</small>' +
+            '<span class="mode-tag ' + (srv() ? 'on' : 'off') + '">' +
+            (srv() ? '● ' + esc(T('server_on')) : '○ ' + esc(T('server_off'))) + '</span></div>' +
           TABS.map(function (x) {
             return '<button class="mnav ' + (tab === x.k ? 'on' : '') + '" data-tab="' + x.k + '">' +
               '<span>' + x.i + '</span>' + esc(T(x.t)) + '</button>';
@@ -100,7 +118,8 @@
     ];
     var maxF = funnel[0].v || 1;
 
-    return head('SALES INTELLIGENCE', UI.getLang() === 'he' ? 'תמונת מצב של הצוות והמועמדים' : 'صورة عامة عن الفريق والمرشحين') +
+    return head('SALES INTELLIGENCE', UI.getLang() === 'he' ? 'תמונת מצב של הצוות והמועמדים' : 'صورة عامة عن الفريق والمرشحين',
+      srv() ? '<button class="btn" id="refreshBtn">⟳ ' + esc(LL('تحديث من السيرفر', 'רענון מהשרת')) + '</button>' : '') +
       '<div class="kpis">' +
         kpi('👥', tested + '/' + s.employees.length, T('kpi_tested'), '#3b82f6') +
         kpi('🔥', g.strong, T('kpi_strong'), '#10b981') +
@@ -138,7 +157,10 @@
         '</div>' +
       '</div>';
   }
-  function bindDash() {}
+  function bindDash() {
+    var r = document.getElementById('refreshBtn');
+    if (r) r.onclick = function () { push(Promise.resolve(), '⟳'); };
+  }
 
   function kpi(icon, val, label, color) {
     return '<div class="kpi" style="--c:' + color + '"><div class="kpi-i">' + icon + '</div>' +
@@ -247,6 +269,10 @@
     node.querySelector('#cdSave').onclick = function () {
       var v = String(field.value || '').trim().toUpperCase();
       if (v.length < 6) return UI.toast(T('pin_short'), 'bad');
+      if (srv()) {
+        node.remove();
+        return push(API.setCode(e.id, v), '🔑 ' + T('code_saved') + ' — ' + v);
+      }
       Store.setEmployeeCode(e.id, v, function () {
         node.remove();
         UI.toast('🔑 ' + T('code_saved') + ' — ' + v);
@@ -280,7 +306,10 @@
     document.body.appendChild(node);
     node.querySelector('#mCancel').onclick = function () { node.remove(); };
     var del = node.querySelector('#mDel');
-    if (del) del.onclick = function () { Store.removeEmployee(e.id); node.remove(); view = null; body(); };
+    if (del) del.onclick = function () {
+      if (srv()) { node.remove(); view = null; return push(API.deleteEmployee(e.id), '🗑'); }
+      Store.removeEmployee(e.id); node.remove(); view = null; body();
+    };
     node.querySelector('#mSave').onclick = function () {
       var patch = {};
       UI.$$('[data-k]', node).forEach(function (i) {
@@ -290,6 +319,12 @@
         else patch[i.dataset.k] = v;
       });
       if (!patch.name) return UI.toast(T('fill_all'), 'bad');
+      if (srv()) {
+        patch.id = isNew ? '' : e.id;
+        patch.monthsTotal = patch.monthsTotal || 12;
+        node.remove();
+        return push(API.saveEmployee(patch), '✔');
+      }
       if (isNew) { patch.monthsTotal = 12; Store.addEmployee(patch); }
       else Store.updateEmployee(e.id, patch);
       node.remove(); body();
@@ -676,6 +711,7 @@
     UI.$$('[data-dec]', m).forEach(function (btn) {
       btn.onclick = function () {
         var dec = btn.dataset.dec;
+        if (srv()) return push(API.decision(view.id, dec), '✔ ' + dec);
         Store.updateCandidate(view.id, { decision: dec, stage: dec === 'hired' ? 7 : dec === 'interview' ? 5 : 6 });
         UI.toast('✔ ' + dec); body();
       };
@@ -689,9 +725,12 @@
     });
     var add = document.getElementById('fuAdd');
     if (add) add.onclick = function () {
+      var day = Number(document.getElementById('fuDay').value);
+      var pct = Number(document.getElementById('fuTarget').value);
+      if (srv()) return push(API.review(view.id, day, { targetPct: pct }), '✔');
       var c = st().candidates.filter(function (x) { return x.id === view.id; })[0];
       c.followups = c.followups || [];
-      c.followups.push({ day: Number(document.getElementById('fuDay').value), targetPct: Number(document.getElementById('fuTarget').value) });
+      c.followups.push({ day: day, targetPct: pct });
       Store.save(); body();
     };
   }
@@ -839,20 +878,32 @@
     };
     var ap = document.getElementById('applyW');
     if (ap) ap.onclick = function () {
-      var s = st(); s.settings.weights = Engine.learnWeights(s.employees).weights; Store.save();
-      UI.toast('✔ ' + T('apply_weights')); body();
+      var s = st(); var w = Engine.learnWeights(s.employees).weights;
+      s.settings.weights = w;
+      if (srv()) return push(API.saveSettings({ weights: w }), '✔ ' + T('apply_weights'));
+      Store.save(); UI.toast('✔ ' + T('apply_weights')); body();
     };
     var au = document.getElementById('autoW');
-    if (au) au.onclick = function () { var s = st(); s.settings.weights = null; Store.save(); UI.toast('✔ ' + T('auto_weights')); body(); };
+    if (au) au.onclick = function () {
+      var s = st(); s.settings.weights = null;
+      if (srv()) return push(API.saveSettings({ weights: null }), '✔ ' + T('auto_weights'));
+      Store.save(); UI.toast('✔ ' + T('auto_weights')); body();
+    };
     var cal = document.getElementById('calW');
     if (cal) cal.onclick = function () {
       var s = st(), r = Engine.calibrate6(s.employees);
       if (!r.enough) return UI.toast(UI.getLang() === 'he' ? 'אין מספיק עובדים שנבדקו' : 'عدد الموظفين المفحوصين غير كافٍ', 'bad');
-      s.settings.ncWeights = r.weights; Store.save();
-      UI.confetti(30); UI.toast('✔ ' + T('calibrate')); body();
+      s.settings.ncWeights = r.weights;
+      UI.confetti(30);
+      if (srv()) return push(API.saveSettings({ ncWeights: r.weights }), '✔ ' + T('calibrate'));
+      Store.save(); UI.toast('✔ ' + T('calibrate')); body();
     };
     var rw = document.getElementById('resetNcW');
-    if (rw) rw.onclick = function () { var s = st(); s.settings.ncWeights = null; Store.save(); UI.toast('✔'); body(); };
+    if (rw) rw.onclick = function () {
+      var s = st(); s.settings.ncWeights = null;
+      if (srv()) return push(API.saveSettings({ ncWeights: null }), '✔');
+      Store.save(); UI.toast('✔'); body();
+    };
   }
 
   /* ================= QUESTION BANK ================= */
@@ -961,7 +1012,9 @@
     };
     var h = document.getElementById('hitBox');
     if (h) h.onclick = function () {
-      var s = st(); s.settings.spotDebug = !s.settings.spotDebug; Store.save(); body();
+      var s = st(); s.settings.spotDebug = !s.settings.spotDebug;
+      if (srv()) return push(API.saveSettings({ spotDebug: s.settings.spotDebug }), null);
+      Store.save(); body();
     };
     UI.$$('[data-focus-emp]', m).forEach(function (btn) {
       btn.onclick = function () {
@@ -1046,6 +1099,10 @@
         UI.$$('[data-c="' + id + '"]', m).forEach(function (inp) {
           rec[inp.dataset.ph] = Number(inp.value);
         });
+        if (srv()) {
+          var day = rec.day; delete rec.day;
+          return push(API.review(id, day, rec), '✔');
+        }
         c.reviews = c.reviews || [];
         c.reviews = c.reviews.filter(function (r) { return r.day !== rec.day; }).concat([rec])
           .sort(function (a, b) { return a.day - b.day; });
@@ -1147,6 +1204,10 @@
       s.settings.thresholds.stage1 = Number(document.getElementById('thStage1').value);
       s.settings.focusEnabled = document.getElementById('fxOn').value === '1';
       s.settings.focusWeight = Number(document.getElementById('fxW').value);
+      if (srv()) return push(API.saveSettings({
+        thresholds: s.settings.thresholds, focusEnabled: s.settings.focusEnabled,
+        focusWeight: s.settings.focusWeight
+      }), '✔');
       Store.save(); UI.toast('✔'); body();
     };
     document.getElementById('savePin').onclick = function () {
@@ -1154,6 +1215,16 @@
       ss.requirePhone = document.getElementById('reqPhone').value === '1';
       ss.requireEmail = document.getElementById('reqMail').value === '1';
       var np = document.getElementById('pinIn').value;
+      if (srv()) {
+        var chain = API.saveSettings({ requirePhone: ss.requirePhone, requireEmail: ss.requireEmail });
+        if (np) {
+          if (np.length < 8) return UI.toast(LL('كلمة السر يجب أن تكون 8 أحرف على الأقل',
+                                                'הסיסמה חייבת להיות 8 תווים לפחות'), 'bad');
+          chain = chain.then(function () { return API.setManagerPass(np); });
+          document.getElementById('pinIn').value = '';
+        }
+        return push(chain, np ? T('pin_saved') : '✔');
+      }
       if (np) {
         if (np.length < 6) { Store.save(); return UI.toast(T('pin_short'), 'bad'); }
         UI.hashPass(np, function (h) {
@@ -1184,8 +1255,16 @@
       };
       r.readAsText(f);
     };
-    document.getElementById('resetBtn').onclick = function () { Store.reset(); UI.toast('✔'); body(); };
-    document.getElementById('wipeBtn').onclick = function () { Store.wipe(); UI.toast('✔'); body(); };
+    document.getElementById('resetBtn').onclick = function () {
+      if (srv()) return UI.toast(LL('غير متاح في وضع السيرفر — البيانات مركزية.',
+                                    'לא זמין במצב שרת — הנתונים מרוכזים.'), 'bad');
+      Store.reset(); UI.toast('✔'); body();
+    };
+    document.getElementById('wipeBtn').onclick = function () {
+      if (srv()) return UI.toast(LL('غير متاح في وضع السيرفر — البيانات مركزية.',
+                                    'לא זמין במצב שרת — הנתונים מרוכזים.'), 'bad');
+      Store.wipe(); UI.toast('✔'); body();
+    };
   }
 
   root.SDNA.Manager = { open: open };
