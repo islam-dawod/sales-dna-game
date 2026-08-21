@@ -451,7 +451,7 @@
         '<small>' + h.m.slice(5) + '</small></div>';
     }).join('') + '<div class="hist-line" style="bottom:' + (100 / 160 * 100) + '%"></div></div>' : '';
     var rank = { strong: 3, medium: 2, low: 1 };
-    return '<div class="card"><h3>📈 ' + esc(T('perf_history')) + ' <small class="muted">(' + ps.n + ' ' +
+    return '<div class="card"><button class="btn btn-xs" id="monthlyBtn" style="float:inline-end">➕ ' + esc(T('enter_monthly')) + '</button><h3>📈 ' + esc(T('perf_history')) + ' <small class="muted">(' + ps.n + ' ' +
         esc(LL('شهراً', 'months')) + ')</small></h3>' + bars +
       '<div class="kpis sm">' +
         kpi('📊', (ps.avg == null ? '—' : ps.avg + '%'), LL('متوسط تحقيق الهدف', 'Average target attainment'), '#3b82f6') +
@@ -478,6 +478,10 @@
     var b = document.getElementById('back'); if (b) b.onclick = function () { view = null; body(); };
     var ed = document.getElementById('editEmp');
     if (ed) ed.onclick = function () { empForm(st().employees.filter(function (x) { return x.id === view.id; })[0]); };
+    var mb = document.getElementById('monthlyBtn');
+    if (mb) mb.onclick = function () {
+      monthlyModal(st().employees.filter(function (x) { return x.id === view.id; })[0]);
+    };
     UI.$$('[data-focus-emp]', m).forEach(function (btn) {
       btn.onclick = function () {
         var e = st().employees.filter(function (x) { return x.id === btn.dataset.focusEmp; })[0];
@@ -1254,6 +1258,114 @@
         ? '<p class="muted sm" style="margin-top:10px">⚪ ' + esc(T('similar_traits')) + ': ' +
           cmp.similar.map(function (r) { return esc(lname(r.key)); }).join(' · ') + '</p>'
         : '') + '</div>';
+  }
+
+  /* ================= MONTHLY PERFORMANCE =================
+     The real numbers the whole analysis rests on. Without these the target
+     hitters screen has nothing to split on, so this is deliberately a fast
+     grid rather than one field at a time: a year of months, tab across.
+
+     Attainment is derived from target and sales as they are typed, so the
+     manager enters the figures they actually have and the percentage follows. */
+  function monthKeys(n) {
+    var out = [], d = new Date(2026, 7, 1);   /* fixed reference, no clock read */
+    for (var i = 0; i < n; i++) {
+      var y = d.getFullYear(), m = d.getMonth() + 1;
+      out.unshift(y + '-' + (m < 10 ? '0' : '') + m);
+      d.setMonth(d.getMonth() - 1);
+    }
+    return out;
+  }
+
+  function monthlyModal(e) {
+    var existing = {};
+    (e.history || []).forEach(function (h) { existing[h.m] = h; });
+    var months = monthKeys(12);
+    /* keep any month already stored that falls outside the last twelve */
+    Object.keys(existing).forEach(function (m) { if (months.indexOf(m) < 0) months.unshift(m); });
+    months.sort();
+
+    var cell = function (m, k, val, w) {
+      return '<td><input data-m="' + m + '" data-c="' + k + '" type="number" ' +
+        'value="' + (val == null ? '' : val) + '" style="width:' + (w || 64) + 'px;padding:5px 6px"></td>';
+    };
+    var rows = months.map(function (m) {
+      var h = existing[m] || {};
+      return '<tr><td><b dir="ltr">' + m + '</b></td>' +
+        cell(m, 'target', h.target, 78) + cell(m, 'sales', h.sales, 78) +
+        cell(m, 'deals', h.deals) +
+        '<td><b class="pctOut" data-m="' + m + '" style="font-variant-numeric:tabular-nums">' +
+          (h.pct == null ? '—' : h.pct + '%') + '</b>' +
+          '<input data-m="' + m + '" data-c="pct" type="hidden" value="' + (h.pct == null ? '' : h.pct) + '"></td>' +
+        cell(m, 'attendance', h.attendance) + cell(m, 'lateDays', h.lateDays) +
+        cell(m, 'absence', h.absence) + cell(m, 'managerScore', h.managerScore) +
+        '</tr>';
+    }).join('');
+
+    var h = '<div class="modal-bg"><div class="modal wide"><h3>' +
+      esc(T('monthly_perf')) + ' — ' + esc(e.name) + '</h3>' +
+      '<div style="overflow:auto;max-height:60vh"><table class="tm-tbl"><thead><tr>' +
+        '<th>' + esc(T('month_col')) + '</th><th>' + esc(T('target_col')) + '</th>' +
+        '<th>' + esc(T('sales_col')) + '</th><th>' + esc(T('deals_col')) + '</th>' +
+        '<th>' + esc(T('pct_col')) + '</th><th>' + esc(T('attend_col')) + '</th>' +
+        '<th>' + esc(T('late_col')) + '</th><th>' + esc(T('absence_col')) + '</th>' +
+        '<th>' + esc(T('mgr_col')) + '</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="muted sm">' + esc(T('auto_pct_note')) + '</p>' +
+      '<div class="modal-actions">' +
+      '<button class="btn btn-primary" id="mhSave">' + esc(T('save')) + '</button>' +
+      '<button class="btn btn-ghost" id="mhCancel">' + esc(T('cancel')) + '</button></div></div></div>';
+
+    var node = UI.el(h);
+    document.body.appendChild(node);
+
+    /* attainment follows the figures as they are typed */
+    var recompute = function (m) {
+      var get = function (c) {
+        var i = node.querySelector('[data-m="' + m + '"][data-c="' + c + '"]');
+        return i && i.value !== '' ? Number(i.value) : null;
+      };
+      var t = get('target'), sa = get('sales');
+      var outNode = node.querySelector('.pctOut[data-m="' + m + '"]');
+      var hidden = node.querySelector('[data-m="' + m + '"][data-c="pct"]');
+      if (t && sa != null) {
+        var pct = Math.round(100 * sa / t);
+        hidden.value = pct;
+        outNode.textContent = pct + '%';
+        outNode.style.color = UI.tone(Math.min(100, pct));
+      } else if (!t && sa == null) {
+        hidden.value = '';
+        outNode.textContent = '—';
+        outNode.style.color = '';
+      }
+    };
+    UI.$$('input[data-c]', node).forEach(function (i) {
+      i.oninput = function () { recompute(i.dataset.m); };
+    });
+
+    node.querySelector('#mhCancel').onclick = function () { node.remove(); };
+    node.querySelector('#mhSave').onclick = function () {
+      var byMonth = {};
+      UI.$$('input[data-c]', node).forEach(function (i) {
+        var m = i.dataset.m;
+        byMonth[m] = byMonth[m] || { m: m };
+        byMonth[m][i.dataset.c] = i.value === '' ? null : Number(i.value);
+      });
+      var history = Object.keys(byMonth).map(function (m) { return byMonth[m]; })
+        .filter(function (r) {
+          /* a month with nothing in it is not a month with zero performance */
+          return r.pct != null || (r.target != null && r.sales != null);
+        });
+      node.remove();
+      var patch = { id: e.id, name: e.name, branch: e.branch, dept: e.dept,
+                    startDate: e.startDate, targetPct: e.targetPct, monthsAbove: e.monthsAbove,
+                    monthsTotal: e.monthsTotal, attendance: e.attendance, lateDays: e.lateDays,
+                    managerScore: e.managerScore, group: e.group, history: history };
+      if (srv()) return push(API.saveEmployee(patch), '✔ ' + history.length + ' ' + T('months_saved'));
+      Store.updateEmployee(e.id, { history: history });
+      UI.toast('✔ ' + history.length + ' ' + T('months_saved'));
+      body();
+    };
   }
 
   /* ================= TARGET HITTERS =================

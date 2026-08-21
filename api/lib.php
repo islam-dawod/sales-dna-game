@@ -230,6 +230,14 @@ function migrate() {
      CREATE TABLE IF NOT EXISTS never alters an existing table, so a column
      added after a database was already installed needs its own guarded step. */
   add_column($d, 'assessments', 'timing', 'LONGTEXT NULL');
+  /* real monthly numbers, not just the attainment percentage */
+  add_column($d, 'employee_history', 'target', 'INT NULL');
+  add_column($d, 'employee_history', 'sales', 'INT NULL');
+  add_column($d, 'employee_history', 'deals', 'INT NULL');
+  add_column($d, 'employee_history', 'attendance', 'INT NULL');
+  add_column($d, 'employee_history', 'late_days', 'INT NULL');
+  add_column($d, 'employee_history', 'absence', 'INT NULL');
+  add_column($d, 'employee_history', 'manager_score', 'INT NULL');
 }
 
 /* adds a column only when it is missing, so migrate() stays safe to re-run */
@@ -365,11 +373,20 @@ function employee_row_to_client($r, $withPrivate = false) {
 }
 
 function load_history(&$employees) {
-  $rows = db()->query('SELECT emp_id, ym, pct FROM employee_history ORDER BY ym ASC')->fetchAll();
+  $rows = db()->query('SELECT * FROM employee_history ORDER BY ym ASC')->fetchAll();
   foreach ($rows as $h) {
-    if (isset($employees[$h['emp_id']])) {
-      $employees[$h['emp_id']]['history'][] = array('m' => $h['ym'], 'pct' => (int) $h['pct']);
-    }
+    if (!isset($employees[$h['emp_id']])) continue;
+    $employees[$h['emp_id']]['history'][] = array(
+      'm' => $h['ym'],
+      'pct' => (int) $h['pct'],
+      'target' => intOrNull(isset($h['target']) ? $h['target'] : null),
+      'sales' => intOrNull(isset($h['sales']) ? $h['sales'] : null),
+      'deals' => intOrNull(isset($h['deals']) ? $h['deals'] : null),
+      'attendance' => intOrNull(isset($h['attendance']) ? $h['attendance'] : null),
+      'lateDays' => intOrNull(isset($h['late_days']) ? $h['late_days'] : null),
+      'absence' => intOrNull(isset($h['absence']) ? $h['absence'] : null),
+      'managerScore' => intOrNull(isset($h['manager_score']) ? $h['manager_score'] : null)
+    );
   }
 }
 

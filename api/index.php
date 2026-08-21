@@ -274,19 +274,39 @@ case 'employee/save':
       $fields['manager_score'], $grp, $id));
   }
 
-  /* optional monthly history: [{m:'2025-01', pct:118}, ...] */
+  /* Monthly numbers: [{m:'2026-01', target:, sales:, deals:, pct:, attendance:,
+     lateDays:, absence:, managerScore:}, ...]. pct is derived from target and
+     sales when it is not supplied, so the manager can enter real figures and
+     let the attainment percentage follow. */
   $hist = inp('history');
   if (is_array($hist)) {
     $del = db()->prepare('DELETE FROM employee_history WHERE emp_id = ?');
     $del->execute(array($id));
-    $ins = db()->prepare('INSERT INTO employee_history (emp_id, ym, pct) VALUES (?, ?, ?)
-                          ON DUPLICATE KEY UPDATE pct = VALUES(pct)');
+    $ins = db()->prepare('INSERT INTO employee_history
+        (emp_id, ym, pct, target, sales, deals, attendance, late_days, absence, manager_score)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE pct = VALUES(pct), target = VALUES(target), sales = VALUES(sales),
+          deals = VALUES(deals), attendance = VALUES(attendance), late_days = VALUES(late_days),
+          absence = VALUES(absence), manager_score = VALUES(manager_score)');
     foreach ($hist as $h) {
       if (!is_array($h) || !isset($h['m'])) continue;
       $ym = s($h['m'], 7);
-      $pct = intOrNull(isset($h['pct']) ? $h['pct'] : null);
-      if (!preg_match('/^\d{4}-\d{2}$/', $ym) || $pct === null) continue;
-      $ins->execute(array($id, $ym, max(0, min(400, $pct))));
+      if (!preg_match('/^\d{4}-\d{2}$/', $ym)) continue;
+      $target = intOrNull(isset($h['target']) ? $h['target'] : null);
+      $sales  = intOrNull(isset($h['sales']) ? $h['sales'] : null);
+      $pct    = intOrNull(isset($h['pct']) ? $h['pct'] : null);
+      if ($pct === null && $target !== null && $target > 0 && $sales !== null) {
+        $pct = (int) round(100 * $sales / $target);
+      }
+      /* a month with no attainment figure and no numbers to derive one from
+         carries no performance signal, so it is not stored */
+      if ($pct === null) continue;
+      $ins->execute(array($id, $ym, max(0, min(400, $pct)), $target, $sales,
+        intOrNull(isset($h['deals']) ? $h['deals'] : null),
+        intOrNull(isset($h['attendance']) ? $h['attendance'] : null),
+        intOrNull(isset($h['lateDays']) ? $h['lateDays'] : null),
+        intOrNull(isset($h['absence']) ? $h['absence'] : null),
+        intOrNull(isset($h['managerScore']) ? $h['managerScore'] : null)));
     }
   }
   out(array('ok' => true, 'id' => $id));

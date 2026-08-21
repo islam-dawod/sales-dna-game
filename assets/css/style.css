@@ -646,3 +646,7 @@ body.mgr-mode .world{filter:blur(3px) saturate(.6);opacity:.5}
 #modeTag{font-size:11.5px}
 #modeTag.mode-on{color:#6ee7b7}
 #modeTag.mode-off{color:#fbbf24}
+
+/* monthly performance grid needs a wider modal than the edit form */
+.modal.wide{max-width:min(96vw,860px)}
+.modal.wide .tm-tbl input{background:#0d1729;border:1px solid #2b3c5c;border-radius:6px;color:#e8eeff}
