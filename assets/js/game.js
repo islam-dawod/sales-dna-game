@@ -229,6 +229,19 @@
     /* Pick up an interrupted run rather than handing out a fresh clock: the
        stored deadline is absolute, so a reload costs the time it really took. */
     var prev = loadRun(runId());
+
+    /* A finished result that never reached the server: send it before anything
+       else, so a failed upload is recovered instead of silently discarded. */
+    if (prev && prev.pending && Store.isServerMode() && root.SDNA.API) {
+      var pend = prev.pending;
+      renderSaving();
+      return sendResult(pend.model, pend.payload).then(function () {
+        clearRun();
+        UI.toast('✔ ' + T('saving').replace('…', ''));
+        renderMap(true);
+      })['catch'](function (err) { renderSaveFailed(err, pend.model, pend.payload); });
+    }
+
     if (prev && prev.answers && prev.answers.length && prev.blockIdx < S.plan.length) {
       S.plan = prev.plan || S.plan;
       S.queue = prev.queue || S.queue;
@@ -475,7 +488,6 @@
   function salesComplete() {
     var st = Store.get();
     stopLevelClock();
-    clearRun();
     var payload = { answers: S.answers, completedAt: new Date().toISOString().slice(0, 10),
                     xp: S.xp, badges: S.badges, levels: S.levelStats };
 
@@ -486,15 +498,75 @@
       Store.updateCandidate(S.subject.id, { nc: payload, stage: 2 });
     }
 
-    /* server mode: the result is stored centrally so the manager sees it
-       from any device. A failure is surfaced, never silently swallowed. */
+    /* The result is only finished once the server has it. Until then the run
+       stays in local storage, so a failed upload can be retried instead of
+       telling the candidate their answers were sent when they were not. */
     if (Store.isServerMode() && root.SDNA.API) {
       var model = S.subject.type === 'candidate' ? 'nc25' : (S.mode === 'employee22' ? 'nc22' : 'emp36');
-      root.SDNA.API.saveAssessment(model, payload, S.levelStats)['catch'](function (err) {
-        UI.toast('⚠ ' + T('save_failed') + ' (' + err.message + ')', 'bad');
+      markPending(model, payload);
+      renderSaving();
+      return sendResult(model, payload).then(function () {
+        clearRun();
+        afterSalesSaved();
+      })['catch'](function (err) {
+        renderSaveFailed(err, model, payload);
       });
     }
 
+    clearRun();
+    afterSalesSaved();
+  }
+
+  /* ---------- uploading the finished result ---------- */
+  var SAVE_TRIES = 3;
+  function sendResult(model, payload) {
+    var n = 0;
+    function attempt() {
+      n++;
+      return root.SDNA.API.saveAssessment(model, payload, payload.levels)['catch'](function (err) {
+        /* a rejected payload will be rejected again — only retry transport */
+        if (n >= SAVE_TRIES || (err.status && err.status >= 400 && err.status < 500)) throw err;
+        return new Promise(function (res) { setTimeout(res, n * 1200); }).then(attempt);
+      });
+    }
+    return attempt();
+  }
+  /* keep the finished result in the saved run until the upload succeeds */
+  function markPending(model, payload) {
+    try {
+      var raw = localStorage.getItem(RUN_KEY);
+      var r = raw ? JSON.parse(raw) : {};
+      r.id = runId(); r.pending = { model: model, payload: payload };
+      r.savedAt = Date.now();
+      localStorage.setItem(RUN_KEY, JSON.stringify(r));
+    } catch (e) {}
+  }
+  function renderSaving() {
+    app.innerHTML = '<div class="screen times-up"><div class="tu-card pop">' +
+      '<div class="tu-icon">💾</div><h1 style="color:#7dd3fc">' + esc(T('saving')) + '</h1>' +
+      '<p class="muted">' + esc(T('saving_note')) + '</p>' +
+      '<div class="tu-bar"><i style="animation-duration:2.4s;background:#0ea5e9"></i></div>' +
+      '</div></div>';
+  }
+  function renderSaveFailed(err, model, payload) {
+    app.innerHTML = '<div class="screen times-up"><div class="tu-card pop">' +
+      '<div class="tu-icon">📡</div><h1>' + esc(T('save_failed')) + '</h1>' +
+      '<p class="muted">' + esc(T('save_failed_note')) + '</p>' +
+      '<p class="muted sm" dir="ltr">' + esc(err && err.message ? err.message : '') + '</p>' +
+      '<button class="btn btn-primary btn-xl" id="retrySave">' + esc(T('retry_save')) + '</button>' +
+      '</div></div>';
+    document.getElementById('retrySave').onclick = function () {
+      Sound.tap();
+      renderSaving();
+      sendResult(model, payload).then(function () {
+        clearRun();
+        afterSalesSaved();
+      })['catch'](function (e2) { renderSaveFailed(e2, model, payload); });
+    };
+  }
+
+  function afterSalesSaved() {
+    var st = Store.get();
     if (!st.settings.focusEnabled) return finalScreen();
 
     /* 🏆 SALES LEVEL COMPLETE → 🔓 BONUS LEVEL */

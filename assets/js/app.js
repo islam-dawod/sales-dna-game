@@ -244,6 +244,16 @@
   function backBtn() { return '<button class="btn btn-ghost btn-xs back-b" id="bk">‹ ' + esc(T('back')) + '</button>'; }
   function bindBack() { var b = document.getElementById('bk'); if (b) b.onclick = function () { go('home'); }; }
 
+  /* The footer used to assert "demo build — data is stored locally in your
+     browser". That stayed on the page after the backend went live and became
+     simply untrue, so it now reports the mode the app is actually running in. */
+  function showMode(server) {
+    var tag = document.getElementById('modeTag');
+    if (!tag) return;
+    tag.textContent = '· ' + (server ? T('server_on') : T('server_off'));
+    tag.className = server ? 'mode-on' : 'mode-off';
+  }
+
   /* ---------------- boot ---------------- */
   function boot() {
     app = document.getElementById('app');
@@ -254,10 +264,12 @@
           Store.loadEmpty();
           document.body.classList.add('server-mode');
         }
+        showMode(mode === 'server');
         start();
       });
       return;
     }
+    showMode(false);
     start();
   }
 

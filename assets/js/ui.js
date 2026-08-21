@@ -46,6 +46,13 @@
     cand_done_1:    { ar: 'لقد أكملت تحدي Sales DNA بنجاح.', en: 'You have completed the Sales DNA challenge.' },
     cand_done_2:    { ar: 'تم إرسال نتائجك للفريق.', en: 'Your results have been sent to the team.' },
     focus_title:    { ar: 'تحدي التركيز', en: 'Focus challenge' },
+    /* ---- result upload ---- */
+    saving:         { ar: 'جاري حفظ نتيجتك…', en: 'Saving your result…' },
+    saving_note:    { ar: 'لا تغلق الصفحة — نتأكد أن إجاباتك وصلت للسيرفر',
+                      en: 'Do not close the page — making sure your answers reached the server' },
+    save_failed_note:{ ar: 'لم نستطع إرسال إجاباتك للسيرفر. إجاباتك محفوظة على هذا الجهاز ولم تُفقد — أعد المحاولة عند عودة الاتصال.',
+                      en: 'We could not send your answers to the server. They are saved on this device and are not lost — try again when the connection is back.' },
+    retry_save:     { ar: 'أعد المحاولة', en: 'Try again' },
     /* ---- timed assessment ---- */
     start_level:    { ar: 'ابدأ المرحلة', en: 'Start the level' },
     level_time_note:{ ar: 'لديك {t} لإكمال هذه المرحلة — الوقت يبدأ عند الضغط',
