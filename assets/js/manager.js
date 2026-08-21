@@ -196,9 +196,11 @@
             }).join('') + '</tbody></table>'
             : '<p class="muted">' + esc(UI.getLang() === 'en' ? 'No post-hire follow-up data yet. Add a follow-up from the card of a hired candidate.' : 'لا توجد بيانات متابعة بعد التوظيف. أضف متابعة من بطاقة مرشّح تم توظيفه.') + '</p>') +
         '</div>' +
-      '</div>';
+      '</div>' +
+      healthCard();
   }
   function bindDash() {
+    fillHealth();
     var r = document.getElementById('refreshBtn');
     if (r) r.onclick = function () { push(Promise.resolve(), '⟳'); };
   }
@@ -1258,6 +1260,61 @@
         ? '<p class="muted sm" style="margin-top:10px">⚪ ' + esc(T('similar_traits')) + ': ' +
           cmp.similar.map(function (r) { return esc(lname(r.key)); }).join(' · ') + '</p>'
         : '') + '</div>';
+  }
+
+  /* ================= SYSTEM HEALTH =================
+     Items 34, 35, 73 and 74: what is failing and on whose device, rather than
+     a manager finding out weeks later that results were quietly not landing. */
+  function healthCard() {
+    if (!srv()) return '';
+    return '<div class="card" id="sysHealth"><h3>🛠 ' + esc(T('sys_health')) + '</h3>' +
+      '<p class="muted sm">' + esc(T('loading')) + '</p></div>';
+  }
+
+  function fillHealth() {
+    var box = document.getElementById('sysHealth');
+    if (!box || !srv()) return;
+    API.systemHealth().then(function (h) {
+      var errColor = h.errors24h ? (h.errors24h > 5 ? '#ef4444' : '#f59e0b') : '#10b981';
+      var complete = h.candidates ? Math.round(100 * h.candidatesCompleted / h.candidates) : null;
+      box.innerHTML = '<h3>🛠 ' + esc(T('sys_health')) + '</h3>' +
+        '<div class="kpis">' +
+          kpi('🔴', h.errors24h, T('errors_24h'), errColor) +
+          kpi('📅', h.errors7d, T('errors_7d'), h.errors7d ? '#f59e0b' : '#10b981') +
+          kpi('🧪', h.assessments, T('kpi_tested'), '#3b82f6') +
+          kpi('📊', complete == null ? '—' : complete + '%', T('completion_rate'), '#8b5cf6') +
+          kpi('📈', h.monthsOfData, T('months_saved'), h.monthsOfData ? '#10b981' : '#f59e0b') +
+        '</div>' +
+        (h.byKind && h.byKind.length
+          ? '<div class="chips">' + h.byKind.map(function (k) {
+              return '<span class="chip" style="--c:#ef4444"><i style="background:#ef4444"></i>' +
+                esc(k.kind) + ' <b>' + k.n + '</b></span>';
+            }).join('') + '</div>' : '') +
+        (h.recent && h.recent.length
+          ? '<div style="overflow-x:auto"><table class="tm-tbl"><thead><tr>' +
+            '<th>' + esc(T('date')) + '</th><th></th><th></th><th></th></tr></thead><tbody>' +
+            h.recent.slice(0, 10).map(function (r) {
+              return '<tr><td dir="ltr" style="white-space:nowrap">' + esc(String(r.at).slice(5, 16)) + '</td>' +
+                '<td><span class="pill" style="--c:#ef4444">' + esc(r.kind) + '</span></td>' +
+                '<td dir="ltr" style="max-width:340px">' + esc(String(r.message).slice(0, 140)) + '</td>' +
+                '<td class="muted" dir="ltr">' + esc(deviceOf(r.ua)) +
+                  (r.subject_id ? ' · ' + esc(r.subject_id) : '') + '</td></tr>';
+            }).join('') + '</tbody></table></div>'
+          : '<p class="muted">✓ ' + esc(T('no_errors')) + '</p>');
+    })['catch'](function (err) {
+      box.innerHTML = '<h3>🛠 ' + esc(T('sys_health')) + '</h3>' +
+        '<p class="muted">' + esc(err.message) + '</p>';
+    });
+  }
+
+  /* just enough of the user agent to tell an iPhone from a desktop */
+  function deviceOf(ua) {
+    ua = String(ua || '');
+    var os = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android'
+           : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : '?';
+    var br = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome'
+           : /Safari\//.test(ua) ? 'Safari' : /Firefox\//.test(ua) ? 'Firefox' : '?';
+    return os + ' · ' + br;
   }
 
   /* ================= MONTHLY PERFORMANCE =================

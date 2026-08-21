@@ -509,6 +509,10 @@
         clearRun();
         afterSalesSaved();
       })['catch'](function (err) {
+        /* the manager needs to know a result never landed, and on which device */
+        if (root.SDNA.API.logError) {
+          root.SDNA.API.logError('assessment_save', (err && err.message) || 'save failed');
+        }
         renderSaveFailed(err, model, payload);
       });
     }

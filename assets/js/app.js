@@ -254,8 +254,23 @@
     tag.className = server ? 'mode-on' : 'mode-off';
   }
 
+  /* Anything that breaks in a candidate's browser is reported once, so a stuck
+     assessment shows up in the console instead of being guessed at later. */
+  function watchForErrors() {
+    if (!API || !API.logError) return;
+    root.addEventListener('error', function (ev) {
+      var where = ev.filename ? ' @' + String(ev.filename).split('/').pop() + ':' + ev.lineno : '';
+      API.logError('js_error', (ev.message || 'error') + where);
+    });
+    root.addEventListener('unhandledrejection', function (ev) {
+      var r = ev.reason;
+      API.logError('promise_rejection', (r && (r.message || r)) || 'unhandled rejection');
+    });
+  }
+
   /* ---------------- boot ---------------- */
   function boot() {
+    watchForErrors();
     app = document.getElementById('app');
     if (API) {
       API.probe().then(function (mode) {

@@ -217,6 +217,22 @@ function migrate() {
       KEY idx_exp (expires_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+  /* What actually broke, on whose device. Without this a stuck assessment can
+     only be guessed at, which is exactly what the V4 review complained of. */
+  $d->exec("CREATE TABLE IF NOT EXISTS client_errors (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      scope VARCHAR(12) NULL,
+      subject_id VARCHAR(24) NULL,
+      kind VARCHAR(32) NOT NULL,
+      message VARCHAR(500) NOT NULL,
+      url VARCHAR(255) NULL,
+      ua VARCHAR(255) NULL,
+      ip VARCHAR(45) NULL,
+      KEY idx_at (at),
+      KEY idx_kind (kind)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
   $d->exec("CREATE TABLE IF NOT EXISTS login_attempts (
       id INT AUTO_INCREMENT PRIMARY KEY,
       ip VARCHAR(45) NOT NULL,

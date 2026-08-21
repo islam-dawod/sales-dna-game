@@ -78,8 +78,26 @@
   }
   function saveFocus(result) { return req('submit/focus', { result: result }); }
 
+  /* ---------- error reporting ----------
+     Fire and forget, and deliberately never allowed to throw: a failure to
+     report a problem must not become a second problem. */
+  var reported = {}, reportCount = 0;
+  function logError(kind, message, url) {
+    try {
+      if (reportCount >= 5) return;                  /* one page load, one story */
+      var key = kind + '|' + String(message).slice(0, 120);
+      if (reported[key]) return;                     /* the same fault once */
+      reported[key] = 1;
+      reportCount++;
+      req('log/error', { kind: kind, message: String(message).slice(0, 500),
+                         url: url || (root.location && root.location.href) || '' })
+        ['catch'](function () {});
+    } catch (e) {}
+  }
+
   /* ---------- manager ---------- */
   function fetchState() { return req('state'); }
+  function systemHealth() { return req('system/health'); }
   function saveEmployee(e) {
     return req('employee/save', {
       id: e.id || '', name: e.name, branch: e.branch || '', dept: e.dept || '',
@@ -115,6 +133,6 @@
     fetchState: fetchState, saveEmployee: saveEmployee, deleteEmployee: deleteEmployee,
     setCode: setCode, decision: decision, review: review, deleteCandidate: deleteCandidate,
     saveSettings: saveSettings, setManagerPass: setManagerPass, managerFocus: managerFocus,
-    importState: importState
+    importState: importState, logError: logError, systemHealth: systemHealth
   };
 })(window);

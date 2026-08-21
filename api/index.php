@@ -558,6 +558,62 @@ case 'import/state':
 
   out(array('ok' => true, 'report' => $rep));
 
+/* ============================================================
+   ERROR LOG — what broke, on whose device
+
+   Open on purpose: a crash can happen before anyone signs in, and an
+   error that cannot be reported is an error nobody fixes. Rate limited
+   per IP, every field truncated, and nothing here is ever echoed back to
+   a caller without the manager scope.
+   ============================================================ */
+case 'log/error':
+  need_post();
+  migrate();
+  throttle('errlog', 40, 60);
+  $kind = s(inp('kind'), 32);
+  $msg = s(inp('message'), 500);
+  if ($kind === '' || $msg === '') { log_attempt('errlog', false); fail('bad_input'); }
+  $sess = current_session();
+  $st = db()->prepare('INSERT INTO client_errors (scope, subject_id, kind, message, url, ua, ip)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)');
+  $st->execute(array(
+    $sess ? $sess['scope'] : null,
+    $sess ? $sess['subject_id'] : null,
+    $kind, $msg,
+    s(inp('url'), 255),
+    s(isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '', 255),
+    clientIp()
+  ));
+  log_attempt('errlog', true);
+  /* opportunistic cleanup: a month of history is plenty */
+  db()->exec('DELETE FROM client_errors WHERE at < (NOW() - INTERVAL 30 DAY)');
+  out(array('ok' => true));
+
+case 'system/health':
+  require_scope('manager');
+  migrate();
+  $out = array('ok' => true);
+
+  $out['errors24h'] = (int) db()->query('SELECT COUNT(*) c FROM client_errors
+                        WHERE at > (NOW() - INTERVAL 24 HOUR)')->fetch()['c'];
+  $out['errors7d'] = (int) db()->query('SELECT COUNT(*) c FROM client_errors
+                        WHERE at > (NOW() - INTERVAL 7 DAY)')->fetch()['c'];
+  $out['byKind'] = db()->query('SELECT kind, COUNT(*) n FROM client_errors
+                        WHERE at > (NOW() - INTERVAL 7 DAY)
+                        GROUP BY kind ORDER BY n DESC LIMIT 10')->fetchAll();
+  $out['recent'] = db()->query('SELECT at, scope, subject_id, kind, message, ua
+                        FROM client_errors ORDER BY id DESC LIMIT 25')->fetchAll();
+
+  /* completion: how many started an assessment versus finished one */
+  $out['assessments'] = (int) db()->query('SELECT COUNT(*) c FROM assessments')->fetch()['c'];
+  $out['candidates'] = (int) db()->query('SELECT COUNT(*) c FROM candidates')->fetch()['c'];
+  $out['candidatesCompleted'] = (int) db()->query("SELECT COUNT(DISTINCT subject_id) c FROM assessments
+                        WHERE subject_type = 'candidate'")->fetch()['c'];
+  $out['employeesAssessed'] = (int) db()->query("SELECT COUNT(DISTINCT subject_id) c FROM assessments
+                        WHERE subject_type = 'employee'")->fetch()['c'];
+  $out['monthsOfData'] = (int) db()->query('SELECT COUNT(*) c FROM employee_history')->fetch()['c'];
+  out($out);
+
 default:
   fail('unknown_route: ' . $r, 404);
 }

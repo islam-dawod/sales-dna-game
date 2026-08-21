@@ -46,6 +46,13 @@
     cand_done_1:    { ar: 'لقد أكملت تحدي Sales DNA بنجاح.', en: 'You have completed the Sales DNA challenge.' },
     cand_done_2:    { ar: 'تم إرسال نتائجك للفريق.', en: 'Your results have been sent to the team.' },
     focus_title:    { ar: 'تحدي التركيز', en: 'Focus challenge' },
+    /* ---- system health ---- */
+    sys_health:     { ar: 'حالة النظام', en: 'System health' },
+    errors_24h:     { ar: 'أخطاء 24 ساعة', en: 'Errors 24h' },
+    errors_7d:      { ar: 'أخطاء 7 أيام', en: 'Errors 7 days' },
+    completion_rate:{ ar: 'نسبة إكمال التقييم', en: 'Assessment completion' },
+    no_errors:      { ar: 'لا أخطاء مسجّلة', en: 'No errors logged' },
+    loading:        { ar: 'جاري التحميل…', en: 'Loading…' },
     /* ---- monthly performance entry ---- */
     monthly_perf:   { ar: 'الأداء الشهري', en: 'Monthly performance' },
     enter_monthly:  { ar: 'إدخال الأداء الشهري', en: 'Enter monthly performance' },
