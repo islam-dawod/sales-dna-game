@@ -744,6 +744,139 @@
   }
 
   /* ---- 7. MATCH CONFIDENCE — how much the model can be trusted yet ---- */
+  /* ============================================================
+     TARGET HITTERS — "why do our successful salespeople succeed?"
+
+     groupStats() splits by e.group, which is the manager's label. This
+     splits by measured attainment instead, because the label is an
+     opinion and the number is a fact. A mean is never reported alone:
+     median, spread and range come with it, so a trait that merely looks
+     shared is not mistaken for one that genuinely is.
+     ============================================================ */
+
+  /* the full 36-scenario profile if it exists, else the 22 comparable ones */
+  function empTraits(e) {
+    if (!e) return null;
+    if (e.assessment) return dna(e.assessment.answers).traits;
+    if (e.nc22) return dna(e.nc22.answers).traits;
+    return null;
+  }
+  /* measured target attainment: the monthly history first, the single figure second */
+  function attainment(e) {
+    if (!e) return null;
+    var ps = perfStats(e);
+    if (ps.avg != null) return ps.avg;
+    return e.targetPct != null ? e.targetPct : null;
+  }
+
+  function distribution(values) {
+    var v = (values || []).filter(function (x) { return typeof x === 'number'; })
+                          .slice().sort(function (a, b) { return a - b; });
+    if (!v.length) return null;
+    var mid = Math.floor(v.length / 2);
+    return {
+      n: v.length, mean: round(avg(v)),
+      median: v.length % 2 ? v[mid] : round((v[mid - 1] + v[mid]) / 2),
+      sd: Math.round(stdev(v) * 10) / 10,
+      min: v[0], max: v[v.length - 1], range: v[v.length - 1] - v[0]
+    };
+  }
+
+  function targetHitters(employees, minPct) {
+    minPct = (typeof minPct === 'number') ? minPct : 100;
+    var hitters = [], others = [], assessedNoPerf = 0, perfNoAssessment = 0;
+    (employees || []).forEach(function (e) {
+      var t = empTraits(e), a = attainment(e);
+      if (t && a == null) { assessedNoPerf++; return; }
+      if (!t && a != null) { perfNoAssessment++; return; }
+      if (!t || a == null) return;
+      (a >= minPct ? hitters : others).push(e);
+    });
+    return { threshold: minPct, hitters: hitters, others: others,
+             assessedNoPerf: assessedNoPerf, perfNoAssessment: perfNoAssessment };
+  }
+
+  function hittersDNA(employees, minPct) {
+    var split = targetHitters(employees, minPct);
+    var rows = TK.map(function (k) {
+      var h = distribution(split.hitters.map(function (e) { return empTraits(e)[k]; }));
+      var o = distribution(split.others.map(function (e) { return empTraits(e)[k]; }));
+      var gap = (h && o) ? h.mean - o.mean : null;
+      /* Under five points is noise, not a differentiator. This is the guard
+         against the Focus 81 vs 79 mistake: a two-point edge must never be
+         reported as a reason for success. */
+      var verdict = gap == null ? 'unknown'
+        : Math.abs(gap) < 5 ? 'no_difference'
+        : gap >= 20 ? 'strong' : gap >= 10 ? 'moderate' : gap > 0 ? 'slight' : 'inverse';
+      /* how tightly the hitters cluster on this trait */
+      var shared = h == null ? null
+        : h.range <= 12 ? 'consistent' : h.range <= 25 ? 'mixed' : 'scattered';
+      return { key: k, hitters: h, others: o, gap: gap == null ? null : round(gap),
+               verdict: verdict, shared: shared };
+    }).filter(function (r) { return r.hitters || r.others; })
+      .sort(function (a, b) { return (b.gap == null ? -999 : b.gap) - (a.gap == null ? -999 : a.gap); });
+
+    return {
+      rows: rows, split: split,
+      enough: split.hitters.length >= 3 && split.others.length >= 3,
+      confidence: (split.hitters.length >= 10 && split.others.length >= 5) ? 'high'
+                : (split.hitters.length >= 5 && split.others.length >= 3) ? 'medium' : 'low',
+      differentiators: rows.filter(function (r) { return r.verdict === 'strong' || r.verdict === 'moderate'; }),
+      notDifferentiating: rows.filter(function (r) { return r.verdict === 'no_difference'; })
+    };
+  }
+
+  /* one employee against another, biggest difference first */
+  function compareEmployees(a, b) {
+    var ta = empTraits(a), tb = empTraits(b);
+    if (!ta || !tb) return null;
+    var rows = TK.map(function (k) {
+      if (ta[k] == null || tb[k] == null) return null;
+      return { key: k, a: ta[k], b: tb[k], gap: ta[k] - tb[k] };
+    }).filter(Boolean).sort(function (x, y) { return Math.abs(y.gap) - Math.abs(x.gap); });
+    return {
+      rows: rows,
+      major: rows.filter(function (r) { return Math.abs(r.gap) >= 10; }),
+      similar: rows.filter(function (r) { return Math.abs(r.gap) < 5; }),
+      perf: { a: attainment(a), b: attainment(b) }
+    };
+  }
+
+  /* where someone sits below the people who hit target — phrased as a gap to
+     close, never as a verdict on the person */
+  function developmentPriorities(e, employees, minPct) {
+    var t = empTraits(e);
+    if (!t) return null;
+    var hd = hittersDNA(employees, minPct);
+    var rows = hd.rows.map(function (r) {
+      if (!r.hitters || t[r.key] == null) return null;
+      return { key: r.key, value: t[r.key], benchmark: r.hitters.mean,
+               gap: round(t[r.key] - r.hitters.mean),
+               matters: r.verdict === 'strong' || r.verdict === 'moderate' };
+    }).filter(Boolean).filter(function (r) { return r.gap <= -8; })
+      .sort(function (x, y) {
+        /* a gap on a trait that actually separates performers comes first */
+        if (x.matters !== y.matters) return x.matters ? -1 : 1;
+        return x.gap - y.gap;
+      });
+    return { rows: rows, benchmarkN: hd.split.hitters.length, enough: hd.enough };
+  }
+
+  /* how much of this employee's picture we actually hold */
+  function dataQuality(e) {
+    var checks = [
+      { k: 'assessment', ok: !!(e.assessment || e.nc22) },
+      { k: 'target', ok: attainment(e) != null },
+      { k: 'history6', ok: (e.history || []).length >= 6 },
+      { k: 'attendance', ok: e.attendance != null },
+      { k: 'manager_score', ok: e.managerScore != null },
+      { k: 'group', ok: !!e.group }
+    ];
+    var missing = checks.filter(function (c) { return !c.ok; }).map(function (c) { return c.k; });
+    return { pct: round(100 * (checks.length - missing.length) / checks.length),
+             missing: missing, total: checks.length };
+  }
+
   function matchConfidence(state) {
     var emp = state.employees;
     var withData = emp.filter(function (e) { return e.assessment || e.nc22; });
@@ -835,6 +968,9 @@
     commonDNA: commonDNA, differentiators: differentiators, ncQuestionQuality: ncQuestionQuality,
     matchConfidence: matchConfidence, commonalities: commonalities,
     timingStats: timingStats, completenessBand: completenessBand, mmss: mmss, isAnswered: isAnswered,
+    empTraits: empTraits, attainment: attainment, distribution: distribution,
+    targetHitters: targetHitters, hittersDNA: hittersDNA, compareEmployees: compareEmployees,
+    developmentPriorities: developmentPriorities, dataQuality: dataQuality,
     predictionValidation: predictionValidation, focusVerdict: focusVerdict, actualClass: actualClass
   };
 })(window);

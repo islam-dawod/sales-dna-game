@@ -13,6 +13,7 @@
     { k: 'emp', i: '🧑‍💼', t: 'nav_emp' },
     { k: 'cand', i: '🚀', t: 'nav_cand' },
     { k: 'dna', i: '🧬', t: 'nav_dna' },
+    { k: 'hitters', i: '🏆', t: 'nav_hitters' },
     { k: 'pattern', i: '🤖', t: 'nav_pattern' },
     { k: 'focus', i: '🧠', t: 'nav_focus' },
     { k: 'predict', i: '🎯', t: 'nav_predict' },
@@ -121,10 +122,12 @@
     if (view && view.type === 'emp') return m.innerHTML = empProfile(view.id), bindEmp(m);
     if (view && view.type === 'cand') return m.innerHTML = candProfile(view.id), bindCand(m);
     var fns = { dash: dash, emp: employees, cand: candidates, dna: companyDNA, pattern: patterns,
-                focus: focusTab, predict: predictTab, questions: questions, compare: compare, settings: settings };
+                hitters: hittersTab, focus: focusTab, predict: predictTab, questions: questions,
+                compare: compare, settings: settings };
     m.innerHTML = fns[tab]();
     var binds = { emp: bindEmployees, cand: bindCandidates, pattern: bindPatterns, compare: bindCompare,
-                  settings: bindSettings, dash: bindDash, focus: bindFocus, predict: bindPredict };
+                  settings: bindSettings, dash: bindDash, focus: bindFocus, predict: bindPredict,
+                  hitters: bindHitters };
     if (binds[tab]) binds[tab](m);
   }
 
@@ -415,6 +418,8 @@
     }
     out += '</div>';
     out += timingCard(e.assessment || e.nc22);
+    out += devCard(e);
+    out += dataQualityCard(e);
     out += '<div class="card"><h3>🧠 ' + esc(T('focus_title')) + '</h3>' +
       (e.focus ? '<div class="focus-head">' + UI.ring(e.focus.focus, 'FOCUS', 110) +
         '<div class="focus-subs">' + ['visual', 'speed', 'accuracy', 'recall'].map(function (k) {
@@ -1177,7 +1182,181 @@
         TK.map(function (t) {
           return '<tr><td>' + Q.TRAITS[t].icon + ' ' + esc(lname(t)) + '</td>' +
             series.map(function (x) { var v = x.traits[t]; return '<td style="color:' + (v == null ? '#888' : UI.tone(v)) + '"><b>' + (v == null ? '—' : v) + '</b></td>'; }).join('') + '</tr>';
-        }).join('') + '</tbody></table></div></div>';
+        }).join('') + '</tbody></table></div></div>' +
+      compareSummary(s.employees, sel);
+  }
+
+  /* How much of this employee's picture we actually hold. Stated plainly so no
+     analysis downstream is read as complete when it is not. */
+  function dataQualityCard(e) {
+    var dq = Engine.dataQuality(e);
+    var color = dq.pct >= 90 ? '#10b981' : dq.pct >= 60 ? '#f59e0b' : '#ef4444';
+    var label = { assessment: 'miss_assessment', target: 'miss_target', history6: 'miss_history6',
+                  attendance: 'miss_attendance', manager_score: 'miss_manager', group: 'miss_group' };
+    return '<div class="card"><h3>📋 ' + esc(T('data_quality')) + '</h3>' +
+      '<div class="kpis">' + kpi('📋', dq.pct + '%', T('completeness'), color) + '</div>' +
+      (dq.missing.length
+        ? '<div class="chips">' + dq.missing.map(function (k) {
+            return '<span class="chip" style="--c:#f59e0b"><i style="background:#f59e0b"></i>⚠ ' +
+              esc(T(label[k])) + '</span>';
+          }).join('') + '</div>'
+        : '') + '</div>';
+  }
+
+  /* Where this employee sits below the people who actually hit target. Phrased
+     as a gap to close against a benchmark, never as a verdict on the person,
+     and ordered so traits that genuinely separate performers come first. */
+  function devCard(e) {
+    var dp = Engine.developmentPriorities(e, st().employees, hitThreshold);
+    if (!dp || !dp.enough) return '';
+    return '<div class="card"><h3>🎯 ' + esc(T('dev_priorities')) +
+      ' <small class="muted">— ' + esc(T('benchmark_col')) + ': ' + dp.benchmarkN + ' ' +
+      esc(T('hit_group')) + '</small></h3>' +
+      (dp.rows.length
+        ? '<div style="overflow-x:auto"><table class="tm-tbl"><thead><tr><th></th><th></th>' +
+          '<th>' + esc(T('benchmark_col')) + '</th><th>' + esc(T('gap_col')) + '</th><th></th>' +
+          '</tr></thead><tbody>' +
+          dp.rows.map(function (r, i) {
+            return '<tr><td><b>' + (i + 1) + '</b></td>' +
+              '<td>' + Q.TRAITS[r.key].icon + ' ' + esc(lname(r.key)) + ' <b>' + r.value + '</b></td>' +
+              '<td>' + r.benchmark + '</td>' +
+              '<td class="tm-out"><b>' + r.gap + '</b></td>' +
+              '<td>' + (r.matters
+                ? '<span class="pill" style="--c:#10b981">' + esc(T('matters_tag')) + '</span>' : '') +
+              '</td></tr>';
+          }).join('') + '</tbody></table></div>'
+        : '<p class="muted">' + esc(T('dev_none')) + '</p>') +
+      '<p class="muted sm">' + esc(T('dev_note')) + '</p></div>';
+  }
+
+  /* Two people picked in Compare: say plainly where they differ and where they
+     are effectively the same, so a long trait table is not read as 12 findings. */
+  function compareSummary(employees, sel) {
+    if (sel.length !== 2) return '';
+    var find = function (id) {
+      return employees.filter(function (e) { return 'E:' + e.id === id; })[0];
+    };
+    var cmp = Engine.compareEmployees(find(sel[0].id), find(sel[1].id));
+    if (!cmp) return '';
+    var row = function (r) {
+      return '<div class="sim-row"><b>' + Q.TRAITS[r.key].icon + ' ' + esc(lname(r.key)) + '</b>' +
+        '<span class="sim-v" style="color:' + (r.gap > 0 ? '#10b981' : '#fca5a5') + '">' +
+        (r.gap > 0 ? '+' : '') + r.gap + '</span></div>';
+    };
+    return '<div class="card"><h3>🔥 ' + esc(T('major_diff')) + ' — ' +
+      esc(sel[0].name) + (cmp.perf.a == null ? '' : ' (' + cmp.perf.a + '%)') + ' ' +
+      esc(LL('مقابل', 'vs')) + ' ' + esc(sel[1].name) +
+      (cmp.perf.b == null ? '' : ' (' + cmp.perf.b + '%)') + '</h3>' +
+      (cmp.major.length
+        ? cmp.major.map(row).join('')
+        : '<p class="muted">' + esc(LL('لا فروقات جوهرية.', 'No material differences.')) + '</p>') +
+      (cmp.similar.length
+        ? '<p class="muted sm" style="margin-top:10px">⚪ ' + esc(T('similar_traits')) + ': ' +
+          cmp.similar.map(function (r) { return esc(lname(r.key)); }).join(' · ') + '</p>'
+        : '') + '</div>';
+  }
+
+  /* ================= TARGET HITTERS =================
+     The question the whole system exists to answer: what is different about
+     the people who actually hit target? Membership is decided by measured
+     attainment, never by the manager's label.
+
+     The screen is built to resist the obvious mistake. Every trait shows its
+     spread next to its mean, and a gap under five points is reported as "no
+     real difference" instead of being presented as a cause of success. */
+  var hitThreshold = 100;
+
+  function hittersTab() {
+    var s = st();
+    var hd = Engine.hittersDNA(s.employees, hitThreshold);
+    var sp = hd.split;
+    var confColor = { high: '#10b981', medium: '#f59e0b', low: '#ef4444' }[hd.confidence];
+    var vColorOf = { strong: '#10b981', moderate: '#22d3ee', slight: '#8ea0c4',
+                     no_difference: '#8ea0c4', inverse: '#f59e0b', unknown: '#8ea0c4' };
+    var vLabel = function (v) { return T('v_' + (v === 'no_difference' ? 'none' : v)); };
+
+    var out = head(T('hitters_q'), T('hitters_sub'),
+      '<span class="pill" style="--c:' + confColor + '">' + esc(T('confidence')) + ': ' +
+      esc(T('conf_' + hd.confidence)) + '</span>');
+
+    out += '<div class="card"><h3>' + esc(T('hit_threshold')) + '</h3>' +
+      '<div class="chips pick">' + [90, 95, 100, 105, 110].map(function (v) {
+        return '<button class="chip pickable ' + (hitThreshold === v ? 'on' : '') +
+          '" data-th="' + v + '">' + v + '%</button>';
+      }).join('') + '</div>' +
+      '<div class="kpis" style="margin-top:12px">' +
+        kpi('🏆', sp.hitters.length, T('hit_group') + ' (≥ ' + hitThreshold + '%)', '#10b981') +
+        kpi('📉', sp.others.length, T('oth_group'), '#f59e0b') +
+        kpi('🧬', sp.hitters.length + sp.others.length, T('kpi_tested'), '#3b82f6') +
+      '</div>' +
+      ((sp.assessedNoPerf || sp.perfNoAssessment)
+        ? '<p class="muted sm">⚠ ' + esc(T('hit_missing')
+            .replace('{a}', sp.assessedNoPerf).replace('{b}', sp.perfNoAssessment)) + '</p>'
+        : '') +
+      '</div>';
+
+    if (!hd.enough) {
+      return out + '<div class="card"><div class="alert warn-box">⚠ ' +
+        esc(T('hit_not_enough')) + '</div></div>';
+    }
+
+    /* what actually separates them, and what merely looks like it does */
+    out += '<div class="card"><h3>🔥 ' + esc(T('differentiators')) + '</h3>' +
+      (hd.differentiators.length
+        ? '<div class="chips">' + hd.differentiators.map(function (r) {
+            return '<span class="chip"><i style="background:' + Q.TRAITS[r.key].color + '"></i>' +
+              Q.TRAITS[r.key].icon + ' ' + esc(lname(r.key)) + ' <b>' +
+              (r.gap > 0 ? '+' : '') + r.gap + '</b></span>';
+          }).join('') + '</div>'
+        : '<p class="muted">' + esc(LL('لا يوجد فارق واضح بعد', 'No clear gap yet')) + '</p>') +
+      (hd.notDifferentiating.length
+        ? '<p class="muted sm" style="margin-top:10px">⚪ ' + esc(T('v_none')) + ': ' +
+          hd.notDifferentiating.map(function (r) {
+            return esc(lname(r.key)) + ' (' + (r.gap > 0 ? '+' : '') + r.gap + ')';
+          }).join(' · ') + '</p>'
+        : '') +
+      '<p class="muted sm">' + esc(T('hit_no_diff_note')) + '</p></div>';
+
+    /* mean is never shown alone: median, SD and range come with it */
+    out += '<div class="card"><h3>🧬 ' + esc(T('company_dna')) + '</h3>' +
+      '<div style="overflow-x:auto"><table class="tm-tbl"><thead><tr>' +
+        '<th></th><th>' + esc(T('hit_group')) + '</th><th>' + esc(T('oth_group')) + '</th>' +
+        '<th>' + esc(T('gap_col')) + '</th><th>' + esc(T('median_col')) + '</th>' +
+        '<th>' + esc(T('sd_col')) + '</th><th>' + esc(T('range_col')) + '</th><th></th>' +
+      '</tr></thead><tbody>' +
+      hd.rows.map(function (r) {
+        var c = vColorOf[r.verdict];
+        return '<tr><td><b>' + Q.TRAITS[r.key].icon + ' ' + esc(lname(r.key)) + '</b></td>' +
+          '<td><b style="color:' + (r.hitters ? UI.tone(r.hitters.mean) : '#888') + '">' +
+            (r.hitters ? r.hitters.mean : '—') + '</b></td>' +
+          '<td>' + (r.others ? r.others.mean : '—') + '</td>' +
+          '<td><b style="color:' + c + '">' + (r.gap == null ? '—' : (r.gap > 0 ? '+' : '') + r.gap) + '</b></td>' +
+          '<td>' + (r.hitters ? r.hitters.median : '—') + '</td>' +
+          '<td>' + (r.hitters ? r.hitters.sd : '—') + '</td>' +
+          '<td dir="ltr">' + (r.hitters ? r.hitters.min + '–' + r.hitters.max : '—') + '</td>' +
+          '<td><span class="pill" style="--c:' + c + '">' + esc(vLabel(r.verdict)) + '</span>' +
+            (r.shared ? ' <small class="muted">' + esc(T('sh_' + r.shared)) + '</small>' : '') +
+          '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+
+    /* the two profiles on one radar */
+    var hT = {}, oT = {};
+    hd.rows.forEach(function (r) {
+      hT[r.key] = r.hitters ? r.hitters.mean : null;
+      oT[r.key] = r.others ? r.others.mean : null;
+    });
+    out += '<div class="card">' + UI.radar([
+      { name: T('hit_group'), color: '#10b981', traits: hT },
+      { name: T('oth_group'), color: '#f59e0b', traits: oT }
+    ], { size: 380 }) + '</div>';
+
+    return out;
+  }
+
+  function bindHitters(m) {
+    UI.$$('[data-th]', m).forEach(function (b) {
+      b.onclick = function () { hitThreshold = Number(b.dataset.th); body(); };
+    });
   }
 
   function bindCompare(m) {
