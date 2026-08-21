@@ -507,7 +507,10 @@
         '<td class="muted">' + esc(c.createdAt) + '</td>' +
         '<td>' + stageTag(c) + '</td>' +
         '<td>' + (sc ? bandNum(sc.match, rep.band) : '—') + '</td>' +
-        '<td>' + (rep && rep.sims.strong != null ? '<b style="color:' + UI.tone(rep.sims.strong) + '">' + rep.sims.strong + '%</b>' : '—') + '</td>' +
+        '<td>' + (function () {
+          var v = rep ? (rep.sims.hitters != null ? rep.sims.hitters : rep.sims.strong) : null;
+          return v == null ? '—' : '<b style="color:' + UI.tone(v) + '">' + v + '%</b>';
+        })() + '</td>' +
         '<td>' + (sc && sc.consistency != null ? '<span style="color:' + UI.tone(sc.consistency) + '">' + sc.consistency + '%</span>' : '—') + '</td>' +
         '<td>' + (c.focus ? '<span style="color:' + UI.tone(c.focus.focus) + '">' + c.focus.focus + '</span>' : '—') + '</td>' +
         '<td>' + (sc && sc.flags.length ? '<span class="flag-n">🚩 ' + sc.flags.length + '</span>' : '—') + '</td>' +
@@ -575,7 +578,10 @@
       '<div>' + UI.ring(sc.match, 'SALES DNA', 140) + '</div>' +
       '<div class="mh-info"><b>' + esc(T('band_' + rep.band)) + '</b>' +
         '<div class="mh-sims">' +
-          simChip(T('group_strong'), rep.sims.strong, '#10b981') +
+          /* the measured comparison first, the manager's labels after it */
+          simChip('🏆 ' + T('hit_group'), rep.sims.hitters, '#10b981') +
+          simChip(T('oth_group'), rep.sims.belowTarget, '#f59e0b') +
+          simChip(T('group_strong'), rep.sims.strong, '#22d3ee') +
           simChip(T('group_medium'), rep.sims.medium, '#3b82f6') +
           simChip(T('group_low'), rep.sims.low, '#ef4444') +
         '</div>' +
@@ -676,7 +682,8 @@
     var top = com.common.slice(0, 2).map(function (r) { return (lang === 'en' ? NC.DIMS[r.key].en : NC.DIMS[r.key].ar) + ' ' + r.match + '%'; });
     var gap = com.differences.slice(0, 2).map(function (r) { return (lang === 'en' ? NC.DIMS[r.key].en : NC.DIMS[r.key].ar) + ' ' + r.delta; });
     var parts = [];
-    if (rep.sims.strong != null) parts.push(LL('تشابه مع الأقوياء ', 'Similarity to the strong ') + rep.sims.strong + '%');
+    if (rep.sims.hitters != null) parts.push(LL('تشابه مع من يحقّقون الهدف ', 'Similarity to target hitters ') + rep.sims.hitters + '%');
+    else if (rep.sims.strong != null) parts.push(LL('تشابه مع الأقوياء ', 'Similarity to the strong ') + rep.sims.strong + '%');
     if (top.length) parts.push(LL('الأقرب: ', 'Closest: ') + top.join(', '));
     if (gap.length) parts.push(LL('فجوة: ', 'Gap: ') + gap.join(', '));
     if (rep.score.consistency != null) parts.push(LL('اتساق ', 'Consistency ') + rep.score.consistency + '%');

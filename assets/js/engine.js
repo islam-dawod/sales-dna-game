@@ -453,7 +453,10 @@
       account:    traits.accountability != null ? traits.accountability : null
     };
   }
-  function employee6(e) { return e.assessment ? to6(dna(e.assessment.answers).traits) : null; }
+  function employee6(e) {
+    var t = empTraits(e);          /* emp36 if present, else the 22 comparable ones */
+    return t ? to6(t) : null;
+  }
 
   function group6(employees) {
     var res = {};
@@ -481,6 +484,23 @@
   }
 
   /* candidate (25-question model) vs the three employee groups */
+  /* Item 58: a candidate is compared against the profile of people who
+     actually hit target, not against one employee and not against a label. */
+  function hitters6(employees, minPct) {
+    var split = targetHitters(employees, minPct);
+    var centroid = function (list) {
+      var vals = list.map(employee6).filter(Boolean);
+      var t = {};
+      NC.DIM_KEYS.forEach(function (k) {
+        var v = vals.map(function (x) { return x[k]; }).filter(function (x) { return x != null; });
+        t[k] = v.length ? round(avg(v)) : null;
+      });
+      return { dims: t, n: vals.length };
+    };
+    return { hitters: centroid(split.hitters), others: centroid(split.others),
+             threshold: split.threshold };
+  }
+
   function candidateReport(c, state) {
     if (!c.nc) return null;
     var sc = NC.score(c.nc.answers, state);
@@ -491,9 +511,14 @@
       medium: g6.medium.n ? similarity6(sc.dims, g6.medium.dims, w) : null,
       low:    g6.low.n ? similarity6(sc.dims, g6.low.dims, w) : null
     };
+    /* against the measured hitters, which is the comparison that matters */
+    var h6 = hitters6(state.employees, state.settings.hitThreshold || 100);
+    sims.hitters = h6.hitters.n ? similarity6(sc.dims, h6.hitters.dims, w) : null;
+    sims.belowTarget = h6.others.n ? similarity6(sc.dims, h6.others.dims, w) : null;
+
     var th = state.settings.thresholds;
     var band = sc.match >= th.high ? 'high' : sc.match >= th.mid ? 'mid' : 'low';
-    return { score: sc, sims: sims, groups: g6, band: band, weights: w };
+    return { score: sc, sims: sims, groups: g6, band: band, weights: w, hitters: h6 };
   }
 
   /* calibrate the 6 weights from what actually separates strong from low */
@@ -969,7 +994,7 @@
     matchConfidence: matchConfidence, commonalities: commonalities,
     timingStats: timingStats, completenessBand: completenessBand, mmss: mmss, isAnswered: isAnswered,
     empTraits: empTraits, attainment: attainment, distribution: distribution,
-    targetHitters: targetHitters, hittersDNA: hittersDNA, compareEmployees: compareEmployees,
+    targetHitters: targetHitters, hittersDNA: hittersDNA, hitters6: hitters6, compareEmployees: compareEmployees,
     developmentPriorities: developmentPriorities, dataQuality: dataQuality,
     predictionValidation: predictionValidation, focusVerdict: focusVerdict, actualClass: actualClass
   };
