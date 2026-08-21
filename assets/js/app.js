@@ -4,7 +4,7 @@
 (function (root) {
   'use strict';
   var Store = root.SDNA.Store, UI = root.SDNA.UI, Art = root.SDNA.Art,
-      Game = root.SDNA.Game, Manager = root.SDNA.Manager, API = root.SDNA.API;
+      Game = root.SDNA.Game, API = root.SDNA.API;
   function srv() { return API && API.isServer(); }
   var T = UI.T, esc = UI.esc;
   var app, route = 'splash';
@@ -17,9 +17,40 @@
       splash: splash, home: home,
       empLogin: empLogin, empReady: empReady,
       candName: candName, candHello: candHello,
-      mgrLogin: mgrLogin, manager: function () { Manager.open(); }
+      mgrLogin: mgrLogin, manager: openManager
     }[r] || home)(data);
     window.scrollTo(0, 0);
+  }
+
+  /* ---------------- deferred modules ----------------
+     The manager console is a quarter of all the JavaScript in the project and
+     a candidate never touches it, so it is fetched only when someone actually
+     opens the console. Nothing else changes: once loaded it behaves exactly as
+     if it had been in the page from the start. */
+  var loaded = {};
+  function loadScript(file) {
+    if (loaded[file]) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      var ver = (document.body && document.body.dataset.ver) || '';
+      var el = document.createElement('script');
+      el.src = 'assets/js/' + file + (ver ? '?v=' + ver : '');
+      el.async = false;
+      el.onload = function () { loaded[file] = 1; resolve(); };
+      el.onerror = function () { reject(new Error('load_failed: ' + file)); };
+      document.head.appendChild(el);
+    });
+  }
+
+  function openManager() {
+    if (root.SDNA.Manager) return root.SDNA.Manager.open();
+    app.innerHTML = '<div class="screen"><p class="muted">' + esc(T('loading')) + '</p></div>';
+    loadScript('manager.js').then(function () {
+      root.SDNA.Manager.open();
+    })['catch'](function (err) {
+      UI.toast('⚠ ' + err.message, 'bad');
+      if (API && API.logError) API.logError('module_load', err.message);
+      go('home');
+    });
   }
 
   /* ---------------- splash ---------------- */

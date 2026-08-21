@@ -650,3 +650,21 @@ body.mgr-mode .world{filter:blur(3px) saturate(.6);opacity:.5}
 /* monthly performance grid needs a wider modal than the edit form */
 .modal.wide{max-width:min(96vw,860px)}
 .modal.wide .tm-tbl input{background:#0d1729;border:1px solid #2b3c5c;border-radius:6px;color:#e8eeff}
+
+/* ============================================================
+   PERFORMANCE MODE — items 22-24
+   backdrop-filter over a large area is one of the most expensive
+   things a phone can be asked to do, so it is dropped below the
+   tablet breakpoint and whenever reduced motion is requested.
+   ============================================================ */
+@media(max-width:767px){
+  .hud,.topbar,.role-card,.panel,.modal-bg{backdrop-filter:none}
+  .topbar{background:rgba(5,8,15,.92)}
+  .modal-bg{background:rgba(4,7,14,.93)}
+  #world{display:none}          /* the parallax city is decorative */
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important}
+  .hud,.topbar,.role-card,.panel,.modal-bg{backdrop-filter:none}
+}

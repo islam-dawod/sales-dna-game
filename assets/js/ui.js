@@ -429,7 +429,21 @@
     setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600);
   }
 
+  /* Items 22, 23 and 25: a phone does not get the desktop particle count, and
+     a reader who asked for reduced motion gets none at all. */
+  function lowPower() {
+    try {
+      if (root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'none';
+      if (root.matchMedia && root.matchMedia('(max-width: 767px)').matches) return 'mobile';
+      if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) return 'mobile';
+    } catch (e) {}
+    return 'full';
+  }
+
   function confetti(n) {
+    var mode = lowPower();
+    if (mode === 'none') return;
+    if (mode === 'mobile') n = Math.max(5, Math.round(n * 0.18));
     var host = el('<div class="confetti"></div>');
     document.body.appendChild(host);
     var colors = ['#3b82f6', '#8b5cf6', '#22d3ee', '#10b981', '#f59e0b', '#ec4899'];
@@ -533,7 +547,7 @@
   }
 
   root.SDNA.UI = {
-    T: T, qt: qt, nm: nm, setLang: setLang, getLang: getLang, DICT: DICT,
+    T: T, qt: qt, nm: nm, setLang: setLang, getLang: getLang, DICT: DICT, lowPower: lowPower,
     hashPass: hashPass, fnvHash: fnvHash,
     el: el, $: $, $$: $$, esc: esc, toast: toast, confetti: confetti, countUp: countUp,
     radar: radar, bars: bars, ring: ring, tone: tone
