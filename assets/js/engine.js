@@ -486,8 +486,8 @@
   /* candidate (25-question model) vs the three employee groups */
   /* Item 58: a candidate is compared against the profile of people who
      actually hit target, not against one employee and not against a label. */
-  function hitters6(employees, minPct) {
-    var split = targetHitters(employees, minPct);
+  function hitters6(employees, spec) {
+    var split = targetHitters(employees, spec);
     var centroid = function (list) {
       var vals = list.map(employee6).filter(Boolean);
       var t = {};
@@ -512,7 +512,11 @@
       low:    g6.low.n ? similarity6(sc.dims, g6.low.dims, w) : null
     };
     /* against the measured hitters, which is the comparison that matters */
-    var h6 = hitters6(state.employees, state.settings.hitThreshold || 100);
+    var h6 = hitters6(state.employees, {
+      minPct: Number(state.settings.benchMinPct) || 100,
+      minMonths: Number(state.settings.benchMinMonths) || 0,
+      minStreak: Number(state.settings.benchMinStreak) || 0
+    });
     sims.hitters = h6.hitters.n ? similarity6(sc.dims, h6.hitters.dims, w) : null;
     sims.belowTarget = h6.others.n ? similarity6(sc.dims, h6.others.dims, w) : null;
 
@@ -648,6 +652,26 @@
       trend: round(avg(v.slice(half)) - avg(v.slice(0, half))),
       history: h
     };
+  }
+
+  /* longest unbroken run of months at or above target */
+  function consecutiveAbove(e) {
+    var h = (e.history || []).filter(function (x) { return typeof x.pct === 'number'; })
+      .slice().sort(function (a, b) { return String(a.m) < String(b.m) ? -1 : 1; });
+    var best = 0, run = 0;
+    h.forEach(function (x) {
+      if (x.pct >= 100) { run++; if (run > best) best = run; } else { run = 0; }
+    });
+    return best;
+  }
+
+  /* months of service, from the start date */
+  function seniorityMonths(e) {
+    var d = String(e.startDate || '');
+    if (!/^\d{4}-\d{2}/.test(d)) return null;
+    var y = parseInt(d.slice(0, 4), 10), m = parseInt(d.slice(5, 7), 10);
+    /* fixed reference date: this project never reads the clock in analysis */
+    return (2026 - y) * 12 + (8 - m);
   }
 
   /* ---- data-based classification (independent of the manager label) ---- */
@@ -807,22 +831,63 @@
     };
   }
 
-  function targetHitters(employees, minPct) {
-    minPct = (typeof minPct === 'number') ? minPct : 100;
-    var hitters = [], others = [], assessedNoPerf = 0, perfNoAssessment = 0;
+  /* The benchmark group is a definition the manager sets, not a single cut-off:
+     enough service to have had a fair run, an average at or above target, and
+     a sustained streak rather than one lucky month. Passing a bare number keeps
+     the old behaviour. */
+  function benchmarkRule(spec) {
+    spec = (typeof spec === 'number') ? { minPct: spec } : (spec || {});
+    return {
+      minPct: typeof spec.minPct === 'number' ? spec.minPct : 100,
+      minMonths: typeof spec.minMonths === 'number' ? spec.minMonths : 0,
+      minStreak: typeof spec.minStreak === 'number' ? spec.minStreak : 0
+    };
+  }
+
+  function targetHitters(employees, spec) {
+    var rule = benchmarkRule(spec);
+    var hitters = [], others = [], assessedNoPerf = 0, perfNoAssessment = 0, excluded = [];
     (employees || []).forEach(function (e) {
       var t = empTraits(e), a = attainment(e);
       if (t && a == null) { assessedNoPerf++; return; }
       if (!t && a != null) { perfNoAssessment++; return; }
       if (!t || a == null) return;
-      (a >= minPct ? hitters : others).push(e);
+
+      if (a >= rule.minPct) {
+        /* meets the number — now the rest of the definition */
+        var sen = seniorityMonths(e);
+        var streak = consecutiveAbove(e);
+        var whyNot = [];
+        if (rule.minMonths && sen != null && sen < rule.minMonths) whyNot.push('seniority');
+        if (rule.minStreak && streak < rule.minStreak) whyNot.push('streak');
+        if (whyNot.length) {
+          /* above target but outside the definition: counted in neither group,
+             because calling them a low performer would be plainly wrong */
+          excluded.push({ emp: e, reasons: whyNot, seniority: sen, streak: streak });
+          return;
+        }
+        hitters.push(e);
+      } else {
+        others.push(e);
+      }
     });
-    return { threshold: minPct, hitters: hitters, others: others,
-             assessedNoPerf: assessedNoPerf, perfNoAssessment: perfNoAssessment };
+    return { threshold: rule.minPct, rule: rule, hitters: hitters, others: others,
+             excluded: excluded, assessedNoPerf: assessedNoPerf,
+             perfNoAssessment: perfNoAssessment };
   }
 
-  function hittersDNA(employees, minPct) {
-    var split = targetHitters(employees, minPct);
+  /* Item 16: how much weight the dataset can carry. The tiers are a starting
+     point to be calibrated against this company's own data, not a statistical
+     law — which is why they are named rather than dressed up as a percentage. */
+  function datasetTier(n) {
+    if (n < 10) return 'insufficient';
+    if (n < 30) return 'preliminary';
+    if (n < 100) return 'medium';
+    return 'strong';
+  }
+
+  function hittersDNA(employees, spec) {
+    var split = targetHitters(employees, spec);
     var rows = TK.map(function (k) {
       var h = distribution(split.hitters.map(function (e) { return empTraits(e)[k]; }));
       var o = distribution(split.others.map(function (e) { return empTraits(e)[k]; }));
@@ -841,9 +906,12 @@
     }).filter(function (r) { return r.hitters || r.others; })
       .sort(function (a, b) { return (b.gap == null ? -999 : b.gap) - (a.gap == null ? -999 : a.gap); });
 
+    var assessed = split.hitters.length + split.others.length;
     return {
       rows: rows, split: split,
       enough: split.hitters.length >= 3 && split.others.length >= 3,
+      tier: datasetTier(assessed),
+      assessed: assessed,
       confidence: (split.hitters.length >= 10 && split.others.length >= 5) ? 'high'
                 : (split.hitters.length >= 5 && split.others.length >= 3) ? 'medium' : 'low',
       differentiators: rows.filter(function (r) { return r.verdict === 'strong' || r.verdict === 'moderate'; }),
@@ -995,6 +1063,7 @@
     timingStats: timingStats, completenessBand: completenessBand, mmss: mmss, isAnswered: isAnswered,
     empTraits: empTraits, attainment: attainment, distribution: distribution,
     targetHitters: targetHitters, hittersDNA: hittersDNA, hitters6: hitters6, compareEmployees: compareEmployees,
+    datasetTier: datasetTier, consecutiveAbove: consecutiveAbove, seniorityMonths: seniorityMonths,
     developmentPriorities: developmentPriorities, dataQuality: dataQuality,
     predictionValidation: predictionValidation, focusVerdict: focusVerdict, actualClass: actualClass
   };

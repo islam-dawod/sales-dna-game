@@ -1440,11 +1440,21 @@
      The screen is built to resist the obvious mistake. Every trait shows its
      spread next to its mean, and a gap under five points is reported as "no
      real difference" instead of being presented as a cause of success. */
-  var hitThreshold = 100;
+  var hitThreshold = null;      /* null = follow the saved setting */
+
+  function benchSpec() {
+    var g = st().settings;
+    return {
+      minPct: hitThreshold != null ? hitThreshold : (Number(g.benchMinPct) || 100),
+      minMonths: Number(g.benchMinMonths) || 0,
+      minStreak: Number(g.benchMinStreak) || 0
+    };
+  }
 
   function hittersTab() {
     var s = st();
-    var hd = Engine.hittersDNA(s.employees, hitThreshold);
+    var spec = benchSpec();
+    var hd = Engine.hittersDNA(s.employees, spec);
     var sp = hd.split;
     var confColor = { high: '#10b981', medium: '#f59e0b', low: '#ef4444' }[hd.confidence];
     var vColorOf = { strong: '#10b981', moderate: '#22d3ee', slight: '#8ea0c4',
@@ -1457,14 +1467,31 @@
 
     out += '<div class="card"><h3>' + esc(T('hit_threshold')) + '</h3>' +
       '<div class="chips pick">' + [90, 95, 100, 105, 110].map(function (v) {
-        return '<button class="chip pickable ' + (hitThreshold === v ? 'on' : '') +
+        return '<button class="chip pickable ' + (spec.minPct === v ? 'on' : '') +
           '" data-th="' + v + '">' + v + '%</button>';
       }).join('') + '</div>' +
+      '<p class="muted sm">' + esc(T('bench_def')) + ': ≥ ' + spec.minPct + '% · ' +
+        esc(T('bench_months')) + ' ' + spec.minMonths + ' ' + esc(T('months_unit')) + ' · ' +
+        spec.minStreak + ' ' + esc(T('bench_streak')) + '</p>' +
       '<div class="kpis" style="margin-top:12px">' +
         kpi('🏆', sp.hitters.length, T('hit_group') + ' (≥ ' + hitThreshold + '%)', '#10b981') +
         kpi('📉', sp.others.length, T('oth_group'), '#f59e0b') +
-        kpi('🧬', sp.hitters.length + sp.others.length, T('kpi_tested'), '#3b82f6') +
+        kpi('🧬', hd.assessed, T('kpi_tested'), '#3b82f6') +
+        kpi('⚖️', sp.excluded.length, T('excluded_n'), sp.excluded.length ? '#8ea0c4' : '#8ea0c4') +
+        kpi('📐', T('tier_' + hd.tier), T('confidence'),
+            hd.tier === 'strong' ? '#10b981' : hd.tier === 'medium' ? '#22d3ee'
+          : hd.tier === 'preliminary' ? '#f59e0b' : '#ef4444') +
       '</div>' +
+      (sp.excluded.length
+        ? '<p class="muted sm">⚖️ ' + esc(T('bench_note')) + '</p>' +
+          '<div class="chips">' + sp.excluded.map(function (x) {
+            return '<span class="chip"><i style="background:#8ea0c4"></i>' + esc(x.emp.name) +
+              ' <small>' + x.reasons.map(function (r) {
+                return r === 'seniority' ? esc(T('bench_months')) : esc(T('bench_streak'));
+              }).join(' · ') + '</small></span>';
+          }).join('') + '</div>'
+        : '') +
+      '<p class="muted sm">' + esc(T('tier_note')) + '</p>' +
       ((sp.assessedNoPerf || sp.perfNoAssessment)
         ? '<p class="muted sm">⚠ ' + esc(T('hit_missing')
             .replace('{a}', sp.assessedNoPerf).replace('{b}', sp.perfNoAssessment)) + '</p>'
@@ -1573,6 +1600,20 @@
             return '<option value="' + v + '"' + ((Number(s.settings.levelSeconds) || 180) === v ? ' selected' : '') + '>' + mm + '</option>';
           }).join('') + '</select></label>' +
         '<p class="muted sm">⏱ ' + esc(T('timer_note')) + '</p>' +
+        '<h3 style="margin-top:16px">🏆 ' + esc(T('bench_def')) + '</h3>' +
+        '<label class="fld"><span>' + esc(T('hit_threshold')) + '</span><select id="bmPct">' +
+          [90, 95, 100, 105, 110].map(function (v) {
+            return '<option value="' + v + '"' + ((Number(s.settings.benchMinPct) || 100) === v ? ' selected' : '') + '>≥ ' + v + '%</option>';
+          }).join('') + '</select></label>' +
+        '<label class="fld"><span>' + esc(T('bench_months')) + '</span><select id="bmMonths">' +
+          [0, 3, 6, 12].map(function (v) {
+            return '<option value="' + v + '"' + ((Number(s.settings.benchMinMonths) || 0) === v ? ' selected' : '') + '>' + v + ' ' + esc(T('months_unit')) + '</option>';
+          }).join('') + '</select></label>' +
+        '<label class="fld"><span>' + esc(T('bench_streak')) + '</span><select id="bmStreak">' +
+          [0, 2, 3, 4, 6].map(function (v) {
+            return '<option value="' + v + '"' + ((Number(s.settings.benchMinStreak) || 0) === v ? ' selected' : '') + '>' + v + '</option>';
+          }).join('') + '</select></label>' +
+        '<p class="muted sm">' + esc(T('bench_note')) + '</p>' +
         '<p class="muted sm">' + esc(T('open_anyway')) + ' · ' + esc(T('focus_note')) + '</p>' +
         '<button class="btn btn-primary" id="saveTh">' + esc(T('save')) + '</button></div>' +
       '<div class="card"><h3>PIN</h3>' +
@@ -1613,10 +1654,15 @@
       s.settings.focusWeight = Number(document.getElementById('fxW').value);
       s.settings.timerEnabled = document.getElementById('tmOn').value === '1';
       s.settings.levelSeconds = Number(document.getElementById('tmSecs').value);
+      s.settings.benchMinPct = Number(document.getElementById('bmPct').value);
+      s.settings.benchMinMonths = Number(document.getElementById('bmMonths').value);
+      s.settings.benchMinStreak = Number(document.getElementById('bmStreak').value);
       if (srv()) return push(API.saveSettings({
         thresholds: s.settings.thresholds, focusEnabled: s.settings.focusEnabled,
         focusWeight: s.settings.focusWeight,
-        timerEnabled: s.settings.timerEnabled, levelSeconds: s.settings.levelSeconds
+        timerEnabled: s.settings.timerEnabled, levelSeconds: s.settings.levelSeconds,
+        benchMinPct: s.settings.benchMinPct, benchMinMonths: s.settings.benchMinMonths,
+        benchMinStreak: s.settings.benchMinStreak
       }), '✔');
       Store.save(); UI.toast('✔'); body();
     };

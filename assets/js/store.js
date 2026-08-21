@@ -71,6 +71,10 @@
         focusEnabled: true,     // bonus focus level
         timerEnabled: true,     // 3-minute clock per level
         levelSeconds: 180,      // manager-tunable: 150 / 180 / 240
+        /* benchmark group: who counts as having proven they hit target */
+        benchMinPct: 100,       // average attainment at or above this
+        benchMinMonths: 6,      // enough service to have had a fair run
+        benchMinStreak: 3,      // consecutive months above, not one lucky one
         focusInDecision: false, // never part of the match score unless proven
         focusWeight: 0,         // stays 0 until company data proves it separates
         spotDebug: false,       // show hitboxes (manager / developer only)
