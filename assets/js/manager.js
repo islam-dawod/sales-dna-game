@@ -606,6 +606,7 @@
       '</div>';
 
     out += timingCard(c.nc);
+    out += aiNearestCard('candidate', c.id);
 
     /* six dimensions + radar */
     out += '<div class="grid2">' +
@@ -768,6 +769,7 @@
   }
 
   function bindCand(m) {
+    fillNearest();
     var b = document.getElementById('back'); if (b) b.onclick = function () { view = null; body(); };
     UI.$$('[data-dec]', m).forEach(function (btn) {
       btn.onclick = function () {
@@ -1432,6 +1434,124 @@
     };
   }
 
+  /* ================= SIMILARITY LAYER =================
+     AI-LAYER.md §6 and §10 phases 1-2. The vector is the six-dimension
+     profile the engine already produces, so employees assessed on the 36
+     scenarios and candidates on the 25 questions land in one comparable
+     space. It is computed here and stored on your own server. */
+  function aiVectorFor(subject, isCandidate) {
+    var dims = isCandidate
+      ? (subject.nc ? NC.score(subject.nc.answers, st()).dims : null)
+      : Engine.employee6(subject);
+    if (!dims) return null;
+    var v = NC.DIM_KEYS.map(function (k) { return dims[k] == null ? 0 : dims[k] / 100; });
+    var any = v.some(function (x) { return x > 0; });
+    return any ? v : null;
+  }
+
+  function aiPerfFor(e) {
+    var ps = Engine.perfStats(e);
+    return { months: ps.n || null, avg: ps.avg, streak: Engine.consecutiveAbove(e), trend: ps.trend };
+  }
+
+  function buildVectors() {
+    if (!srv()) return UI.toast(LL('يحتاج وضع السيرفر', 'Needs server mode'), 'bad');
+    var s = st();
+    var jobs = [];
+    s.employees.forEach(function (e) {
+      var v = aiVectorFor(e, false);
+      if (v) jobs.push({ type: 'employee', id: e.id, vec: v,
+                         traits: Engine.empTraits(e), perf: aiPerfFor(e) });
+    });
+    s.candidates.forEach(function (c) {
+      var v = aiVectorFor(c, true);
+      if (v) jobs.push({ type: 'candidate', id: c.id, vec: v, traits: null, perf: null });
+    });
+    if (!jobs.length) return UI.toast(LL('لا يوجد من أجرى التقييم بعد', 'Nobody has been assessed yet'), 'bad');
+
+    UI.toast('⏳ ' + jobs.length);
+    var chain = Promise.resolve(), done = 0, failed = 0;
+    jobs.forEach(function (j) {
+      chain = chain.then(function () {
+        return API.aiEmbed(j.type, j.id, j.vec, j.traits, j.perf, false)
+          .then(function () { done++; })
+          ['catch'](function () { failed++; });
+      });
+    });
+    chain.then(function () {
+      UI.toast('✔ ' + done + (failed ? ' · ✗ ' + failed : ''));
+      body();
+    });
+  }
+
+  /* nearest employees for one subject, with the predictive count */
+  function aiNearestCard(subjectType, subjectId) {
+    return '<div class="card" id="aiNear" data-t="' + subjectType + '" data-i="' + subjectId + '">' +
+      '<h3>🧭 ' + esc(T('ai_nearest')) + '</h3>' +
+      '<p class="muted sm">' + esc(T('loading')) + '</p></div>';
+  }
+
+  function fillNearest() {
+    var box = document.getElementById('aiNear');
+    if (!box || !srv()) return;
+    API.aiSimilar(box.dataset.t, box.dataset.i, 15).then(function (res) {
+      var p = res.predictive || {};
+      var tierColor = { strong: '#10b981', medium: '#22d3ee',
+                        preliminary: '#f59e0b', insufficient: '#ef4444' }[p.tier] || '#8ea0c4';
+      box.innerHTML = '<h3>🧭 ' + esc(T('ai_nearest')) + '</h3>' +
+        '<div class="kpis">' +
+          kpi('🎯', p.value == null ? '—' : p.value + '%', T('ai_predictive'), tierColor) +
+          kpi('📐', T('tier_' + p.tier), T('confidence'), tierColor) +
+        '</div>' +
+        (p.of ? '<p class="muted sm">' + esc(T('ai_of_n').replace('{hit}', p.hit).replace('{of}', p.of)) + '</p>' : '') +
+        (p.counts_toward_match ? '' : '<div class="alert warn-box">⚖️ ' + esc(T('ai_zero_weight')) + '</div>') +
+        (res.neighbours && res.neighbours.length
+          ? '<div style="overflow-x:auto"><table class="tm-tbl"><thead><tr><th></th>' +
+            '<th>' + esc(T('ai_similarity')) + '</th><th>' + esc(T('ai_attainment')) + '</th>' +
+            '<th>' + esc(T('months_saved')) + '</th></tr></thead><tbody>' +
+            res.neighbours.slice(0, 8).map(function (n) {
+              var pct = Math.round(n.similarity * 100);
+              return '<tr><td><b>' + esc(n.employee_id) + '</b></td>' +
+                '<td><b style="color:' + UI.tone(pct) + '">' + pct + '%</b></td>' +
+                '<td>' + (n.attainment == null ? '<span class="muted">—</span>'
+                        : '<b style="color:' + UI.tone(Math.min(100, n.attainment)) + '">' + n.attainment + '%</b>') + '</td>' +
+                '<td class="muted">' + (n.months == null ? '—' : n.months) + '</td></tr>';
+            }).join('') + '</tbody></table></div>'
+          : '<p class="muted">' + esc(T('ai_no_vector')) + '</p>') +
+        '<p class="muted sm">' + esc(T('speed_note')) + '</p>';
+    })['catch'](function (err) {
+      box.innerHTML = '<h3>🧭 ' + esc(T('ai_nearest')) + '</h3>' +
+        '<p class="muted">' + esc(err.message === 'no_vector_for_subject' ? T('ai_no_vector') : err.message) + '</p>';
+    });
+  }
+
+  function aiPanel() {
+    if (!srv()) return '';
+    return '<div class="card" id="aiPanel"><h3>🧬 ' + esc(T('ai_layer')) + '</h3>' +
+      '<p class="muted sm">' + esc(T('loading')) + '</p></div>';
+  }
+
+  function fillAiPanel() {
+    var box = document.getElementById('aiPanel');
+    if (!box || !srv()) return;
+    API.aiVectors().then(function (res) {
+      var rows = res.rows || [];
+      box.innerHTML = '<h3>🧬 ' + esc(T('ai_layer')) + '</h3>' +
+        '<div class="kpis">' +
+          kpi('🧭', rows.length, T('ai_vectors_n'), rows.length ? '#10b981' : '#f59e0b') +
+          kpi('🔑', res.hasKey ? T('ai_key_present') : T('ai_key_absent'), 'OpenAI',
+              res.hasKey ? '#22d3ee' : '#8ea0c4') +
+        '</div>' +
+        '<button class="btn btn-primary" id="aiBuild">🧭 ' + esc(T('ai_build')) + '</button>' +
+        '<p class="muted sm">' + esc(T('ai_local_note')) + '</p>';
+      var b = document.getElementById('aiBuild');
+      if (b) b.onclick = buildVectors;
+    })['catch'](function (err) {
+      box.innerHTML = '<h3>🧬 ' + esc(T('ai_layer')) + '</h3>' +
+        '<p class="muted">' + esc(err.message) + '</p>';
+    });
+  }
+
   /* ================= TARGET HITTERS =================
      The question the whole system exists to answer: what is different about
      the people who actually hit target? Membership is decided by measured
@@ -1500,7 +1620,7 @@
 
     if (!hd.enough) {
       return out + '<div class="card"><div class="alert warn-box">⚠ ' +
-        esc(T('hit_not_enough')) + '</div></div>';
+        esc(T('hit_not_enough')) + '</div></div>' + aiPanel();
     }
 
     /* what actually separates them, and what merely looks like it does */
@@ -1553,10 +1673,12 @@
       { name: T('oth_group'), color: '#f59e0b', traits: oT }
     ], { size: 380 }) + '</div>';
 
+    out += aiPanel();
     return out;
   }
 
   function bindHitters(m) {
+    fillAiPanel();
     UI.$$('[data-th]', m).forEach(function (b) {
       b.onclick = function () { hitThreshold = Number(b.dataset.th); body(); };
     });

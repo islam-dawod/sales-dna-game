@@ -13,6 +13,7 @@
 
 define('SDNA', 1);
 require __DIR__ . '/lib.php';
+require __DIR__ . '/ai.php';
 
 header('Referrer-Policy: same-origin');
 
@@ -613,6 +614,155 @@ case 'system/health':
                         WHERE subject_type = 'employee'")->fetch()['c'];
   $out['monthsOfData'] = (int) db()->query('SELECT COUNT(*) c FROM employee_history')->fetch()['c'];
   out($out);
+
+/* ============================================================
+   AI / SIMILARITY LAYER — AI-LAYER.md §6.3
+   Manager scope only. The vector is computed by the console, which already
+   holds the scoring engine, and stored here; similarity, neighbours and the
+   predictive count are all computed on this server.
+   ============================================================ */
+case 'ai/embed':
+  need_post();
+  require_scope('manager');
+  migrate();
+  ai_migrate();
+
+  $type = s(inp('subjectType'), 12);
+  $sid  = s(inp('subjectId'), 24);
+  if (!in_array($type, array('employee', 'candidate'), true) || $sid === '') fail('bad_input');
+
+  $traits = inp('traits');
+  $perf   = inp('perf');
+  $text   = s(inp('text'), 2000);
+  if ($text === '') $text = ai_profile_text($type, $sid, $traits, $perf);
+
+  $useOpenAI = !empty(inp('useOpenAI'));
+  $model = 'trait-v1';
+  $vec = ai_clean_vector(inp('vector'));
+
+  if ($useOpenAI) {
+    $c = cfg();
+    $model = isset($c['openai_embed_model']) && $c['openai_embed_model']
+             ? $c['openai_embed_model'] : 'text-embedding-3-small';
+    $err = '';
+    $res = ai_openai_embed($text, $model, $err);
+    if (!$res) {
+      ai_audit('embed', $type, $sid, $model, strlen($text), null, false, $err);
+      fail('openai_failed: ' . $err, 502);
+    }
+    $vec = ai_clean_vector($res['vec']);
+    ai_audit('embed', $type, $sid, $model, strlen($text), $res['tokens'], true, 'ok');
+  } else {
+    if (!$vec) fail('bad_vector');
+    ai_audit('embed', $type, $sid, $model, strlen($text), null, true, 'local trait vector');
+  }
+
+  if (!$vec) fail('bad_vector');
+  ai_store_vector($type, $sid, $model, $vec, $text);
+  out(array('ok' => true, 'model' => $model, 'dims' => count($vec), 'text' => $text));
+
+case 'ai/similar':
+  require_scope('manager');
+  migrate();
+  ai_migrate();
+  $type = s(inp('subjectType'), 12);
+  $sid  = s(inp('subjectId'), 24);
+  if (!in_array($type, array('employee', 'candidate'), true) || $sid === '') fail('bad_input');
+  $model = s(inp('model'), 40);
+  if ($model === '') $model = 'trait-v1';
+  $k = intOrNull(inp('k'));
+  $set = load_settings();
+  $minPct = intOrNull(isset($set['benchMinPct']) ? $set['benchMinPct'] : 100);
+  $res = ai_neighbours($model, $type, $sid, $k === null ? 15 : $k, $minPct === null ? 100 : $minPct);
+  if (empty($res['ok'])) fail($res['error'], 404);
+  ai_audit('similar', $type, $sid, $model, null, null, true, 'k=' . ($k === null ? 15 : $k));
+  out($res);
+
+case 'ai/vectors':
+  require_scope('manager');
+  migrate();
+  ai_migrate();
+  $rows = db()->query('SELECT subject_type, subject_id, model, dims, created_at
+                       FROM embeddings ORDER BY subject_type, subject_id')->fetchAll();
+  out(array('ok' => true, 'rows' => $rows, 'hasKey' => ai_key() ? true : false));
+
+case 'ai/audit':
+  require_scope('manager');
+  migrate();
+  ai_migrate();
+  $rows = db()->query('SELECT at, action, subject_type, subject_id, model,
+                              sent_chars, tokens, ok, detail
+                       FROM ai_audit_log ORDER BY id DESC LIMIT 50')->fetchAll();
+  $tok = db()->query('SELECT COALESCE(SUM(tokens),0) t FROM ai_audit_log')->fetch();
+  out(array('ok' => true, 'rows' => $rows, 'totalTokens' => (int) $tok['t']));
+
+/* AI-LAYER §7 · §14 of the proposal: the model explains numbers it is given
+   and is forbidden from producing any of its own. Every figure in the answer
+   comes from the payload, and the payload is computed above, not here. */
+case 'ai/explain':
+  need_post();
+  require_scope('manager');
+  migrate();
+  ai_migrate();
+  $facts = inp('facts');
+  if (!is_array($facts) || !count($facts)) fail('bad_input');
+  $question = s(inp('question'), 400);
+  $lang = s(inp('lang'), 4) === 'en' ? 'en' : 'ar';
+
+  $key = ai_key();
+  if (!$key) fail('no_key: set openai_key in config.php — see AI-LAYER.md section 9', 501);
+  if (!function_exists('curl_init')) fail('no_curl', 501);
+
+  $c = cfg();
+  $chatModel = isset($c['openai_chat_model']) && $c['openai_chat_model']
+               ? $c['openai_chat_model'] : 'gpt-4o-mini';
+
+  $system = 'You explain sales-assessment statistics to a manager. '
+    . 'Every number you mention MUST already appear in the JSON provided. '
+    . 'You may not calculate, estimate, infer or invent any figure. '
+    . 'If the JSON does not contain what is needed, say the data is insufficient. '
+    . 'Never recommend hiring or dismissal: describe what the numbers show and what to verify. '
+    . 'A gap under five points is not a meaningful difference. '
+    . 'Answer in ' . ($lang === 'en' ? 'English' : 'Arabic') . ', briefly.';
+
+  $payload = json_encode(array('facts' => $facts, 'question' => $question), JSON_UNESCAPED_UNICODE);
+
+  $ch = curl_init('https://api.openai.com/v1/chat/completions');
+  curl_setopt_array($ch, array(
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 30,
+    CURLOPT_HTTPHEADER => array('Content-Type: application/json',
+                                'Authorization: Bearer ' . $key),
+    CURLOPT_POSTFIELDS => json_encode(array(
+      'model' => $chatModel,
+      'temperature' => 0.2,
+      'messages' => array(
+        array('role' => 'system', 'content' => $system),
+        array('role' => 'user', 'content' => $payload)
+      )
+    ), JSON_UNESCAPED_UNICODE)
+  ));
+  $raw = curl_exec($ch);
+  $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  $cerr = curl_error($ch);
+  curl_close($ch);
+
+  if ($raw === false) {
+    ai_audit('explain', null, null, $chatModel, strlen($payload), null, false, 'curl: ' . $cerr);
+    fail('openai_failed: ' . $cerr, 502);
+  }
+  $j = json_decode($raw, true);
+  if ($code !== 200 || !isset($j['choices'][0]['message']['content'])) {
+    $msg = isset($j['error']['message']) ? $j['error']['message'] : ('http_' . $code);
+    ai_audit('explain', null, null, $chatModel, strlen($payload), null, false, $msg);
+    fail('openai_failed: ' . $msg, 502);
+  }
+  $tokens = isset($j['usage']['total_tokens']) ? (int) $j['usage']['total_tokens'] : null;
+  ai_audit('explain', null, null, $chatModel, strlen($payload), $tokens, true, 'ok');
+  out(array('ok' => true, 'answer' => $j['choices'][0]['message']['content'],
+            'model' => $chatModel, 'tokens' => $tokens,
+            /* returned so the console can show the figures beside the prose */
+            'facts' => $facts));
 
 default:
   fail('unknown_route: ' . $r, 404);

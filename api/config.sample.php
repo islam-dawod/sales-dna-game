@@ -22,4 +22,14 @@ return array(
 
   /* how long a login stays valid, in hours */
   'session_hours' => 12,
+
+  /* OPTIONAL — the AI layer works without this.
+     Leave it empty and similarity, neighbours and the predictive count all
+     run on the trait vector, on this server, at no cost and with no employee
+     data leaving the machine. Fill it in only if you have decided that
+     sending trait and performance figures to OpenAI is acceptable; see
+     AI-LAYER.md section 9. Never commit this file. */
+  'openai_key' => '',
+  'openai_embed_model' => 'text-embedding-3-small',
+  'openai_chat_model' => 'gpt-4o-mini',
 );

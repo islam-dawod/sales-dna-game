@@ -120,6 +120,26 @@
     });
   }
   function setManagerPass(pass) { return req('manager/pass', { pass: pass }); }
+
+  /* ---------- AI / similarity layer (AI-LAYER.md §6.3) ----------
+     The vector is computed here, where the scoring engine already lives, and
+     stored on the server. Nothing is sent to a third party unless useOpenAI
+     is set and a key is configured server-side. */
+  function aiEmbed(subjectType, subjectId, vector, traits, perf, useOpenAI) {
+    return req('ai/embed', {
+      subjectType: subjectType, subjectId: subjectId, vector: vector,
+      traits: traits || null, perf: perf || null, useOpenAI: !!useOpenAI
+    });
+  }
+  function aiSimilar(subjectType, subjectId, k, model) {
+    return req('ai/similar', { subjectType: subjectType, subjectId: subjectId,
+                               k: k || 15, model: model || 'trait-v1' });
+  }
+  function aiVectors() { return req('ai/vectors'); }
+  function aiAudit() { return req('ai/audit'); }
+  function aiExplain(facts, question, lang) {
+    return req('ai/explain', { facts: facts, question: question || '', lang: lang || 'ar' });
+  }
   function managerFocus(subjectType, subjectId, result) {
     return req('manager/focus', { subjectType: subjectType, subjectId: subjectId, result: result });
   }
@@ -133,6 +153,8 @@
     fetchState: fetchState, saveEmployee: saveEmployee, deleteEmployee: deleteEmployee,
     setCode: setCode, decision: decision, review: review, deleteCandidate: deleteCandidate,
     saveSettings: saveSettings, setManagerPass: setManagerPass, managerFocus: managerFocus,
-    importState: importState, logError: logError, systemHealth: systemHealth
+    importState: importState, logError: logError, systemHealth: systemHealth,
+    aiEmbed: aiEmbed, aiSimilar: aiSimilar, aiVectors: aiVectors,
+    aiAudit: aiAudit, aiExplain: aiExplain
   };
 })(window);
